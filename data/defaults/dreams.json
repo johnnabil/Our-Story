@@ -1,0 +1,18 @@
+[
+  {
+    "id": "3e5af9f3-8807-4803-95db-61e5622d85ab",
+    "icon": "🗺️",
+    "title": "Eat Pasta in Italy",
+    "desc": "Go to around Italy to eat the best pasta.",
+    "category": "travel",
+    "done": false
+  },
+  {
+    "id": "4ab8858d-4cad-47a9-a3f8-a46c486129a6",
+    "icon": "🚶",
+    "title": "Night Walk Every Week",
+    "desc": "No phones, just us and one long walk.",
+    "category": "everyday",
+    "done": false
+  }
+]

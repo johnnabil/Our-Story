@@ -1,0 +1,62 @@
+{
+  "her": {
+    "name": "Maria",
+    "role": "",
+    "birthday": "2001-06-13",
+    "photoUrl": "https://res.cloudinary.com/dsvnkopzr/image/upload/v1773885094/our-story/herhgzvzqt5qt8r65mpw.jpg",
+    "photoPublicId": "our-story/herhgzvzqt5qt8r65mpw",
+    "personality": [
+      "Warm",
+      "Funny",
+      "Loving",
+      "Honest",
+      "Friendly",
+      "Understanding",
+      "Emotionally driven"
+    ],
+    "favourites": {
+      "Drink": "Iced White Mocha",
+      "Food": "Pasta, Pizza, Burger, Shawerma, Feteer, Sushi",
+      "Colour": "Black",
+      "Artist": "Tamer Hosny"
+    },
+    "hobbies": [
+      "Shopping"
+    ],
+    "gifts": "Advent Calendar\nGold bracelets\nGold necklace\nPerfume (Yara)\nMakeup\nOnsie\nPolaroid\nOwala\nThermal Mug\nBody Splash (Dark Kiss/Into the Night)\nRings (Size 11)\nWallet\nBag",
+    "note": "You make ordinary days feel like celebrations."
+  },
+  "him": {
+    "name": "John",
+    "role": "",
+    "birthday": "2001-12-22",
+    "photoUrl": "https://res.cloudinary.com/dsvnkopzr/image/upload/v1773885065/our-story/uqatysexe8bmltzhq2q5.jpg",
+    "photoPublicId": "our-story/uqatysexe8bmltzhq2q5",
+    "personality": [
+      "Patient",
+      "Funny",
+      "Understanding",
+      "Logical Thinker",
+      "Procrastinator",
+      "Friendly",
+      "Introvert"
+    ],
+    "favourites": {
+      "Drink": "Tea",
+      "City": "Berlin",
+      "Food": "Fried Chicken, Wings, Pizza, Mexican, Asian, Shawerma, Feteer, Sushi, Mashawy, 7amam",
+      "Colour": "Blue",
+      "Artist": "Coldplay"
+    },
+    "hobbies": [
+      "Squash",
+      "Padel",
+      "Cars",
+      "Travel",
+      "Scouts",
+      "Tech"
+    ],
+    "gifts": "Hoodies\nSwim shorts\nMobile/Tech Accessories\nBoxers\nOnsie\nChemise (Casual)\nBelt\nThermal Mug\nPerfume",
+    "note": "Your laugh is still my favorite sound."
+  }
+}

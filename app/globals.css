@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f2eae0;
+  --color-warm-white: #faf6f1;
+  --color-parchment: #b4d3d9;
+  --color-rose: #bda6ce;
+  --color-rose-light: #d5c6e0;
+  --color-rose-deep: #9b8ec7;
+  --color-gold: #b4d3d9;
+  --color-gold-light: #d7e9ec;
+  --color-text: #4f456e;
+  --color-text-muted: #6d628f;
+  --color-text-light: #8d82ad;
+  --color-border: rgba(155, 142, 199, 0.25);
+
+  --font-serif: var(--font-cormorant);
+  --font-sans: var(--font-dm-sans);
+}
+
+html,
+body {
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+@supports (overflow: clip) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-text);
+}
+
+section[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gallery-hover-target:hover .gallery-hover-caption {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  section[id] {
+    scroll-margin-top: 6.5rem;
+  }
+}
