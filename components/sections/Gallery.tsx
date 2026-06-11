@@ -18,6 +18,9 @@ import { GALLERY_CATEGORIES, type GalleryCategory, type GalleryPhoto } from "@/l
 import { uploadImage, deleteImageAsset } from "@/lib/upload";
 
 type FilterCategory = "all" | GalleryCategory;
+type AppendGalleryResponse = {
+  gallery: GalleryPhoto[];
+};
 const DELETE_IMAGE_CONFIRMATION =
   "Delete this photo from Cloudinary and remove it from the gallery? This cannot be undone.";
 const FOCUSABLE_SELECTOR =
@@ -99,8 +102,25 @@ function queuedPhotoStatusLabel(queuedPhoto: QueuedPhoto) {
   return queuedPhoto.croppedFile ? "Cropped" : "Crop required";
 }
 
+async function appendGalleryPhotos(photos: GalleryPhoto[]) {
+  const response = await fetch("/api/content/gallery/append", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ photos }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not save uploaded photos to the gallery");
+  }
+
+  const payload = (await response.json()) as AppendGalleryResponse;
+  return payload.gallery;
+}
+
 export function Gallery() {
-  const { content, isLoading, updateContent, flushAll } = useContent();
+  const { content, isLoading, updateContent } = useContent();
   const { isEditing } = useEdit();
 
   const [activeCategory, setActiveCategory] = useState<FilterCategory>("all");
@@ -486,13 +506,20 @@ export function Gallery() {
 
     const uploadedPhotos: GalleryPhoto[] = [];
     const uploadedQueueIds = new Set<string>();
+    let failedUploadCount = 0;
 
-    try {
-      for (const queuedPhoto of queuedPhotos) {
-        if (!queuedPhoto.croppedFile) {
-          throw new Error(`Missing cropped file for ${queuedPhoto.originalFile.name}`);
-        }
+    for (const queuedPhoto of queuedPhotos) {
+      if (!queuedPhoto.croppedFile) {
+        failedUploadCount += 1;
+        updateQueuedPhoto(queuedPhoto.id, (current) => ({
+          ...current,
+          status: "error",
+          error: "Crop required.",
+        }));
+        continue;
+      }
 
+      try {
         const uploaded = await uploadImage(queuedPhoto.croppedFile);
         uploadedPhotos.push({
           url: uploaded.secure_url,
@@ -506,18 +533,38 @@ export function Gallery() {
           ...current,
           status: "uploaded",
         }));
+      } catch (error) {
+        console.error(error);
+        failedUploadCount += 1;
+        updateQueuedPhoto(queuedPhoto.id, (current) => ({
+          ...current,
+          status: "error",
+          error: "Upload failed. Try this photo again.",
+        }));
+      }
+    }
+
+    if (uploadedPhotos.length > 0) {
+      let savedGallery: GalleryPhoto[];
+
+      try {
+        savedGallery = await appendGalleryPhotos(uploadedPhotos);
+      } catch (error) {
+        console.error(error);
+        setQueuedPhotos((current) =>
+          current.filter((queuedPhoto) => !uploadedQueueIds.has(queuedPhoto.id)),
+        );
+        setUploadError(
+          `${uploadedPhotos.length} ${
+            uploadedPhotos.length === 1 ? "photo was" : "photos were"
+          } uploaded to Cloudinary, but the gallery could not save them yet. Try Save All before leaving this page.`
+        );
+        setIsUploading(false);
+        return;
       }
 
-      updateContent("gallery", [...gallery, ...uploadedPhotos]);
-      await flushAll();
-      setActiveCategory("all");
-      resetAddModal();
-    } catch (error) {
-      console.error(error);
-      if (uploadedPhotos.length > 0) {
-        updateContent("gallery", [...gallery, ...uploadedPhotos]);
-        await flushAll();
-      }
+      updateContent("gallery", savedGallery);
+
       setQueuedPhotos((current) =>
         current
           .filter((queuedPhoto) => !uploadedQueueIds.has(queuedPhoto.id))
@@ -527,19 +574,28 @@ export function Gallery() {
             error: queuedPhoto.croppedFile ? null : "Crop required.",
           })),
       );
+
+      if (failedUploadCount === 0) {
+        setActiveCategory("all");
+        resetAddModal();
+        setIsUploading(false);
+        return;
+      }
+
       setUploadError(
-        uploadedPhotos.length > 0
-          ? `${uploadedPhotos.length} ${
-              uploadedPhotos.length === 1 ? "photo was" : "photos were"
-            } added before the upload stopped. Try the remaining photos again.`
-          : "Upload failed. No photos were added. Try again."
+        `${uploadedPhotos.length} of ${queuedPhotos.length} ${
+          uploadedPhotos.length === 1 ? "photo was" : "photos were"
+        } uploaded and saved. Try the remaining ${failedUploadCount} again.`
       );
-    } finally {
       setIsUploading(false);
       setUploadProgress((current) =>
         current.uploaded === current.total ? { uploaded: 0, total: 0 } : current
       );
+      return;
     }
+
+    setUploadError(`0 of ${queuedPhotos.length} photos uploaded. Try again.`);
+    setIsUploading(false);
   };
 
   return (
