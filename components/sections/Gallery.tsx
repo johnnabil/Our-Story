@@ -14,7 +14,7 @@ import {
   isExpectedImagePreparationError,
   normalizeImageForCrop
 } from "@/lib/image-conversion";
-import { GALLERY_CATEGORIES, type GalleryCategory } from "@/lib/types";
+import { GALLERY_CATEGORIES, type GalleryCategory, type GalleryPhoto } from "@/lib/types";
 import { uploadImage, deleteImageAsset } from "@/lib/upload";
 
 type FilterCategory = "all" | GalleryCategory;
@@ -83,8 +83,24 @@ function fullGalleryTileClass(index: number) {
   return pattern[index % pattern.length];
 }
 
+function queuedPhotoStatusLabel(queuedPhoto: QueuedPhoto) {
+  if (queuedPhoto.status === "uploaded") {
+    return "Uploaded";
+  }
+
+  if (queuedPhoto.status === "uploading") {
+    return "Uploading";
+  }
+
+  if (queuedPhoto.status === "error") {
+    return "Needs attention";
+  }
+
+  return queuedPhoto.croppedFile ? "Cropped" : "Crop required";
+}
+
 export function Gallery() {
-  const { content, isLoading, updateContent } = useContent();
+  const { content, isLoading, updateContent, flushAll } = useContent();
   const { isEditing } = useEdit();
 
   const [activeCategory, setActiveCategory] = useState<FilterCategory>("all");
@@ -100,6 +116,7 @@ export function Gallery() {
   const [cropSourceFile, setCropSourceFile] = useState<File | null>(null);
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ uploaded: 0, total: 0 });
   const [uploadError, setUploadError] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement | null>(null);
   const galleryDialogRef = useRef<HTMLDivElement | null>(null);
@@ -169,6 +186,10 @@ export function Gallery() {
   const photoPositionLabel = filtered.length
     ? `${filtered.length} ${filtered.length === 1 ? "photo" : "photos"}`
     : "0 photos";
+  const uploadProgressPercent =
+    uploadProgress.total > 0
+      ? Math.round((uploadProgress.uploaded / uploadProgress.total) * 100)
+      : 0;
 
   const closeLightbox = useCallback(() => {
     setLightboxIndex(null);
@@ -331,6 +352,7 @@ export function Gallery() {
     setCropQueueId(null);
     setCropSourceFile(null);
     setIsPreparingImage(false);
+    setUploadProgress({ uploaded: 0, total: 0 });
     setUploadError(null);
   };
 
@@ -453,6 +475,7 @@ export function Gallery() {
 
     setUploadError(null);
     setIsUploading(true);
+    setUploadProgress({ uploaded: 0, total: queuedPhotos.length });
     setQueuedPhotos((current) =>
       current.map((queuedPhoto) => ({
         ...queuedPhoto,
@@ -461,39 +484,61 @@ export function Gallery() {
       })),
     );
 
+    const uploadedPhotos: GalleryPhoto[] = [];
+    const uploadedQueueIds = new Set<string>();
+
     try {
-      const uploadedPhotos = await Promise.all(
-        queuedPhotos.map(async (queuedPhoto) => {
-          if (!queuedPhoto.croppedFile) {
-            throw new Error(`Missing cropped file for ${queuedPhoto.originalFile.name}`);
-          }
+      for (const queuedPhoto of queuedPhotos) {
+        if (!queuedPhoto.croppedFile) {
+          throw new Error(`Missing cropped file for ${queuedPhoto.originalFile.name}`);
+        }
 
-          const uploaded = await uploadImage(queuedPhoto.croppedFile);
-
-          return {
-            url: uploaded.secure_url,
-            caption: queuedPhoto.caption.trim() || "New memory",
-            category: queuedPhoto.category,
-            publicId: uploaded.public_id,
-          };
-        }),
-      );
+        const uploaded = await uploadImage(queuedPhoto.croppedFile);
+        uploadedPhotos.push({
+          url: uploaded.secure_url,
+          caption: queuedPhoto.caption.trim() || "New memory",
+          category: queuedPhoto.category,
+          publicId: uploaded.public_id,
+        });
+        uploadedQueueIds.add(queuedPhoto.id);
+        setUploadProgress({ uploaded: uploadedPhotos.length, total: queuedPhotos.length });
+        updateQueuedPhoto(queuedPhoto.id, (current) => ({
+          ...current,
+          status: "uploaded",
+        }));
+      }
 
       updateContent("gallery", [...gallery, ...uploadedPhotos]);
+      await flushAll();
       setActiveCategory("all");
       resetAddModal();
     } catch (error) {
       console.error(error);
+      if (uploadedPhotos.length > 0) {
+        updateContent("gallery", [...gallery, ...uploadedPhotos]);
+        await flushAll();
+      }
       setQueuedPhotos((current) =>
-        current.map((queuedPhoto) => ({
-          ...queuedPhoto,
-          status: queuedPhoto.croppedFile ? "ready" : "needs-crop",
-          error: queuedPhoto.croppedFile ? null : "Crop required.",
-        })),
+        current
+          .filter((queuedPhoto) => !uploadedQueueIds.has(queuedPhoto.id))
+          .map((queuedPhoto) => ({
+            ...queuedPhoto,
+            status: queuedPhoto.croppedFile ? "ready" : "needs-crop",
+            error: queuedPhoto.croppedFile ? null : "Crop required.",
+          })),
       );
-      setUploadError("Upload failed. No photos were added. Try again.");
+      setUploadError(
+        uploadedPhotos.length > 0
+          ? `${uploadedPhotos.length} ${
+              uploadedPhotos.length === 1 ? "photo was" : "photos were"
+            } added before the upload stopped. Try the remaining photos again.`
+          : "Upload failed. No photos were added. Try again."
+      );
     } finally {
       setIsUploading(false);
+      setUploadProgress((current) =>
+        current.uploaded === current.total ? { uploaded: 0, total: 0 } : current
+      );
     }
   };
 
@@ -942,7 +987,7 @@ export function Gallery() {
                       </p>
                       <p className="text-xs text-text-light">
                         Photo {index + 1} of {queuedPhotos.length} ·{" "}
-                        {queuedPhoto.croppedFile ? "Cropped" : "Crop required"}
+                        {queuedPhotoStatusLabel(queuedPhoto)}
                       </p>
                     </div>
                     <button
@@ -1020,6 +1065,23 @@ export function Gallery() {
             <p className="text-sm text-rose-deep">{uploadError}</p>
           ) : null}
 
+          {isUploading && uploadProgress.total > 0 ? (
+            <div className="rounded-md border border-gold/25 bg-cream p-3" aria-live="polite">
+              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-text">Uploading photos</span>
+                <span className="tabular-nums text-text-muted">
+                  {uploadProgress.uploaded} of {uploadProgress.total}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gold/20">
+                <div
+                  className="h-full rounded-full bg-rose transition-[width] duration-300"
+                  style={{ width: `${uploadProgressPercent}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex justify-end">
             <button
               type="submit"
@@ -1027,7 +1089,7 @@ export function Gallery() {
               className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isUploading
-                ? `Uploading ${queuedPhotos.length}...`
+                ? `Uploading ${uploadProgress.uploaded} of ${uploadProgress.total}...`
                 : `Add ${queuedPhotos.length ? `${queuedPhotos.length} ` : ""}photo${queuedPhotos.length === 1 ? "" : "s"}`}
             </button>
           </div>
