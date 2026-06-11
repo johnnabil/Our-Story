@@ -3,12 +3,13 @@ import path from "node:path";
 
 import { Redis } from "@upstash/redis";
 
+import { readJsonAsset, writeJsonAsset } from "@/lib/cloudinary";
 import { type ContentKey, type SiteContent } from "@/lib/types";
 
 const defaultsDirPath = path.join(process.cwd(), "data", "defaults");
 
-type StorageMode = "auto" | "redis" | "json";
-type StorageBackend = "redis" | "json";
+type StorageMode = "auto" | "redis" | "json" | "cloudinary";
+type StorageBackend = "redis" | "json" | "cloudinary";
 
 function hasRedisEnv() {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
@@ -34,7 +35,7 @@ function redisKey(key: ContentKey) {
 
 function getStorageMode(): StorageMode {
   const mode = process.env.CONTENT_STORAGE_MODE?.toLowerCase();
-  if (mode === "redis" || mode === "json" || mode === "auto") {
+  if (mode === "redis" || mode === "json" || mode === "cloudinary" || mode === "auto") {
     return mode;
   }
 
@@ -55,7 +56,15 @@ function resolveStorageBackend(): StorageBackend {
     return "redis";
   }
 
+  if (mode === "cloudinary") {
+    return "cloudinary";
+  }
+
   return redis ? "redis" : "json";
+}
+
+function isVercelRuntime() {
+  return Boolean(process.env.VERCEL);
 }
 
 function defaultFilePath(key: ContentKey): string {
@@ -122,6 +131,19 @@ export async function getContent<K extends ContentKey>(key: K): Promise<SiteCont
     return readDefaultFile(key);
   }
 
+  if (backend === "cloudinary") {
+    try {
+      const value = await readJsonAsset<SiteContent[K]>(key);
+      if (value === null) {
+        return readDefaultFile(key);
+      }
+
+      return value;
+    } catch {
+      return readDefaultFile(key);
+    }
+  }
+
   try {
     const value = await redis!.get<SiteContent[K]>(redisKey(key));
     if (value === null) {
@@ -138,7 +160,18 @@ export async function setContent<K extends ContentKey>(key: K, value: SiteConten
   const backend = resolveStorageBackend();
 
   if (backend === "json") {
+    if (isVercelRuntime()) {
+      throw new Error(
+        "JSON content storage is read-only on Vercel. Set CONTENT_STORAGE_MODE=cloudinary or another writable backend for production edits."
+      );
+    }
+
     await writeDefaultFile(key, value);
+    return;
+  }
+
+  if (backend === "cloudinary") {
+    await writeJsonAsset(key, value);
     return;
   }
 

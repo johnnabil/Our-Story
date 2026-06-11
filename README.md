@@ -1,6 +1,6 @@
 # Our Story — Relationship Memories Website
 
-A fully editable, single-page relationship memories site for couples. Every piece of content — text, images, dates, tags — is editable inline via a password-protected edit mode. Content persistence can use Upstash Redis or local JSON-file mode, images live in Cloudinary, and the whole thing deploys to Vercel.
+A fully editable, single-page relationship memories site for couples. Every piece of content — text, images, dates, tags — is editable inline via a password-protected edit mode. Content persistence can use Cloudinary raw JSON assets, Upstash Redis, or local JSON-file mode; images live in Cloudinary, and the whole thing deploys to Vercel.
 
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
@@ -13,7 +13,7 @@ A fully editable, single-page relationship memories site for couples. Every piec
 | Framework | **Next.js 15** (App Router, TypeScript) | Server/client rendering, API routes |
 | Styling | **Tailwind CSS v4** (CSS-first `@theme`) | Utility-first styling, no JS config |
 | Images | **Cloudinary** + `next-cloudinary` | Upload, transform, deliver images |
-| Database | **Upstash Redis** (`@upstash/redis`) | Content persistence (JSON key-value) |
+| Content Store | **Cloudinary raw JSON**, Upstash Redis, or local JSON | Editable content persistence |
 | Auth | **NextAuth v5** (credentials, JWT) | Single-password edit mode protection |
 | Fonts | **Cormorant Garamond** + **DM Sans** | Serif headings + sans-serif body |
 | Hosting | **Vercel** | Serverless deployment |
@@ -48,8 +48,8 @@ A fully editable, single-page relationship memories site for couples. Every piec
 └────────┬─────────────────────────────┬──────────────┘
          │                             │
     ┌────┴────┐                  ┌─────┴──────┐
-    │ Upstash │                  │ Cloudinary │
-    │  Redis  │                  │   (media)  │
+    │ Content │                  │ Cloudinary │
+    │ Store   │                  │   (media)  │
     └─────────┘                  └────────────┘
 ```
 
@@ -59,8 +59,8 @@ A fully editable, single-page relationship memories site for couples. Every piec
 
 ### Prerequisites
 - Bun 1.3+
-- An Upstash Redis database ([upstash.com](https://upstash.com)) if you plan to use Redis mode
 - A Cloudinary account ([cloudinary.com](https://cloudinary.com))
+- An Upstash Redis database ([upstash.com](https://upstash.com)) only if you plan to use Redis mode
 
 ### Setup
 
@@ -89,17 +89,18 @@ Open [http://localhost:3000](http://localhost:3000). The site loads with default
 | `CLOUDINARY_API_SECRET` | ✅ | Cloudinary API secret (server-only) |
 | `UPSTASH_REDIS_REST_URL` | Optional* | Upstash Redis REST URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Optional* | Upstash Redis REST token |
-| `CONTENT_STORAGE_MODE` | Optional | `auto` (default), `redis`, or `json` |
+| `CONTENT_STORAGE_MODE` | Optional | `auto` (default), `cloudinary`, `redis`, or `json` |
 
 ### Storage Backends
 
 - `CONTENT_STORAGE_MODE=auto` (default): use Redis when Redis env vars are present, otherwise use split JSON files in `data/defaults/`.
+- `CONTENT_STORAGE_MODE=cloudinary`: store editable content as raw JSON assets in Cloudinary under `our-story-content/`.
 - `CONTENT_STORAGE_MODE=redis`: force Redis backend (errors if Redis is not configured).
 - `CONTENT_STORAGE_MODE=json`: force JSON backend (reads/writes `data/defaults/<key>.json` per content key).
 
 \* Redis vars are required when `CONTENT_STORAGE_MODE=redis`, and optional in `auto` mode.
 
-Production caveat: JSON write mode depends on a writable persistent filesystem. On serverless platforms like Vercel, writes may fail or not persist across deploys/instances.
+Production caveat: JSON write mode depends on a writable persistent filesystem. On serverless platforms like Vercel, use `CONTENT_STORAGE_MODE=cloudinary` or another external writable backend.
 
 ---
 
@@ -121,7 +122,7 @@ Production caveat: JSON write mode depends on a writable persistent filesystem. 
 bunx vercel --prod
 ```
 
-Set all environment variables in your Vercel project settings. Cloudinary credentials are required. Redis credentials are required only when using `CONTENT_STORAGE_MODE=redis` (or `auto` with Redis enabled).
+Set all environment variables in your Vercel project settings. For a no-Redis deployment, set `CONTENT_STORAGE_MODE=cloudinary` and provide the Cloudinary credentials. Redis credentials are required only when using `CONTENT_STORAGE_MODE=redis` (or `auto` with Redis enabled).
 
 ---
 

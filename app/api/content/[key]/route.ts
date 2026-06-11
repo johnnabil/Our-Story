@@ -43,7 +43,15 @@ export async function PATCH(
   try {
     await setContent(key, payload.value as SiteContent[typeof key]);
     return NextResponse.json({ ok: true, key, value: payload.value });
-  } catch {
-    return NextResponse.json({ error: "Failed to update content" }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown storage error";
+    console.error(`Failed to update content key "${key}":`, error);
+    return NextResponse.json(
+      {
+        error: "Failed to update content",
+        detail: message
+      },
+      { status: 500 }
+    );
   }
 }

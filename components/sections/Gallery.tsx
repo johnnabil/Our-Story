@@ -120,7 +120,7 @@ async function appendGalleryPhotos(photos: GalleryPhoto[]) {
 }
 
 export function Gallery() {
-  const { content, isLoading, updateContent } = useContent();
+  const { content, isLoading, updateContent, replaceContent } = useContent();
   const { isEditing } = useEdit();
 
   const [activeCategory, setActiveCategory] = useState<FilterCategory>("all");
@@ -563,7 +563,7 @@ export function Gallery() {
         return;
       }
 
-      updateContent("gallery", savedGallery);
+      replaceContent("gallery", savedGallery);
 
       setQueuedPhotos((current) =>
         current

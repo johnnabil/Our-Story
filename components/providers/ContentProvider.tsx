@@ -30,6 +30,7 @@ interface ContentContextValue {
   lastSavedKey: ContentKey | null;
   lastSaveError: string | null;
   updateContent: <K extends ContentKey>(key: K, value: SiteContent[K]) => void;
+  replaceContent: <K extends ContentKey>(key: K, value: SiteContent[K]) => void;
   flushAll: () => Promise<FlushAllResult>;
 }
 
@@ -225,6 +226,30 @@ export function ContentProvider({
     [markSaveFinished, markSaveStarted, persistContent, showError, syncPendingKeys]
   );
 
+  const replaceContent = useCallback(<K extends ContentKey>(key: K, value: SiteContent[K]) => {
+    const currentPending = pendingUpdatesRef.current.get(key);
+    if (currentPending) {
+      clearTimeout(currentPending.timer);
+      pendingUpdatesRef.current.delete(key);
+      syncPendingKeys();
+    }
+
+    setContent((prevContent) => {
+      if (!prevContent) {
+        return prevContent;
+      }
+
+      return {
+        ...prevContent,
+        [key]: value
+      };
+    });
+
+    setLastSavedAt(new Date().toISOString());
+    setLastSavedKey(key);
+    setLastSaveError(null);
+  }, [syncPendingKeys]);
+
   const flushAll = useCallback(async (): Promise<FlushAllResult> => {
     const pendingEntries = Array.from(pendingUpdatesRef.current.entries());
 
@@ -284,6 +309,7 @@ export function ContentProvider({
       lastSavedKey,
       lastSaveError,
       updateContent,
+      replaceContent,
       flushAll
     }),
     [
@@ -294,6 +320,7 @@ export function ContentProvider({
       lastSavedKey,
       lastSaveError,
       updateContent,
+      replaceContent,
       flushAll
     ]
   );

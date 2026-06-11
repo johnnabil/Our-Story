@@ -51,18 +51,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid gallery photos" }, { status: 400 });
   }
 
-  const existingGallery = await getContent("gallery");
-  const existingPublicIds = new Set(existingGallery.map((photo) => photo.publicId));
-  const photosToAppend = payload.photos.filter(
-    (photo) => !existingPublicIds.has(photo.publicId),
-  );
-  const gallery = [...existingGallery, ...photosToAppend];
+  try {
+    const existingGallery = await getContent("gallery");
+    const existingPublicIds = new Set(existingGallery.map((photo) => photo.publicId));
+    const photosToAppend = payload.photos.filter(
+      (photo) => !existingPublicIds.has(photo.publicId),
+    );
+    const gallery = [...existingGallery, ...photosToAppend];
 
-  await setContent("gallery", gallery);
+    await setContent("gallery", gallery);
 
-  return NextResponse.json({
-    ok: true,
-    added: photosToAppend.length,
-    gallery,
-  });
+    return NextResponse.json({
+      ok: true,
+      added: photosToAppend.length,
+      gallery,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown storage error";
+    console.error("Failed to append gallery photos:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to append gallery photos",
+        detail: message
+      },
+      { status: 500 }
+    );
+  }
 }
