@@ -98,7 +98,7 @@ export function EditableText({
           {placeholder}
         </span>
       ) : null}
-      <span className="pointer-events-none absolute -right-2 -top-2 rounded-full border border-rose/40 bg-cream px-1.5 py-0.5 text-[10px] text-rose opacity-0 transition group-hover:opacity-100">
+      <span className="pointer-events-none absolute -right-2 -top-2 rounded-full border border-rose/40 bg-cream px-1.5 py-0.5 text-[10px] text-rose-ink opacity-0 transition group-hover:opacity-100">
         edit
       </span>
     </div>

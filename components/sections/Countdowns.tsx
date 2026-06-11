@@ -6,8 +6,13 @@ import { EditableDate } from "@/components/edit/EditableDate";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
-import { Modal } from "@/components/ui/Modal";
+import { UndoToast } from "@/components/ui/UndoToast";
+import type { ImportantDate, Milestone } from "@/lib/types";
 import { parseSafeDate } from "@/lib/utils";
+
+type RemovedCountdownItem =
+  | { type: "milestone"; item: Milestone; index: number }
+  | { type: "date"; item: ImportantDate; index: number };
 
 function getStartOfToday() {
   const today = new Date();
@@ -185,6 +190,8 @@ export function Countdowns() {
   const [newDateValue, setNewDateValue] = useState("");
   const [newDateIcon, setNewDateIcon] = useState("");
   const [newDateIsRecurring, setNewDateIsRecurring] = useState(false);
+  const [newDateError, setNewDateError] = useState<string | null>(null);
+  const [removedItem, setRemovedItem] = useState<RemovedCountdownItem | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -228,13 +235,80 @@ export function Countdowns() {
     }
   ].filter((birthday) => Boolean(birthday.date));
 
+  const removeMilestone = (milestone: Milestone, index: number) => {
+    setRemovedItem({ type: "milestone", item: milestone, index });
+    updateContent(
+      "milestones",
+      milestones.filter((_, currentIndex) => currentIndex !== index)
+    );
+  };
+
+  const removeDate = (dateItem: ImportantDate, index: number) => {
+    setRemovedItem({ type: "date", item: dateItem, index });
+    updateContent(
+      "dates",
+      dates.filter((_, currentIndex) => currentIndex !== index)
+    );
+  };
+
+  const restoreRemovedItem = () => {
+    if (!removedItem) {
+      return;
+    }
+
+    if (removedItem.type === "milestone") {
+      const next = [...milestones];
+      next.splice(Math.min(removedItem.index, next.length), 0, removedItem.item);
+      updateContent("milestones", next);
+    } else {
+      const next = [...dates];
+      next.splice(Math.min(removedItem.index, next.length), 0, removedItem.item);
+      updateContent("dates", next);
+    }
+
+    setRemovedItem(null);
+  };
+
+  const resetNewDate = () => {
+    setIsDateModalOpen(false);
+    setNewDateName("");
+    setNewDateValue("");
+    setNewDateIcon("");
+    setNewDateIsRecurring(false);
+    setNewDateError(null);
+  };
+
+  const handleAddDate = () => {
+    if (!newDateName.trim() || !newDateValue.trim()) {
+      setNewDateError("Add a name and date before saving.");
+      return;
+    }
+
+    updateContent("dates", [
+      ...dates,
+      {
+        name: newDateName.trim(),
+        date: newDateValue,
+        icon: newDateIcon.trim() || "*",
+        isRecurring: newDateIsRecurring
+      }
+    ]);
+
+    resetNewDate();
+  };
+
   return (
     <section
       id="countdowns"
-      className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20"
+      className="px-4 py-16 sm:px-6 md:py-24"
     >
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h2 className="font-serif text-3xl text-rose sm:text-4xl md:text-5xl">Countdowns</h2>
+      <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+        <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">
+          Dates We Keep
+        </h2>
+        </div>
         {isEditing ? (
           <button
             type="button"
@@ -249,20 +323,22 @@ export function Countdowns() {
                 }
               ])
             }
-            className="rounded-full border border-rose/40 px-4 py-2 text-sm text-rose transition hover:bg-rose/10"
+            className="min-h-11 rounded-full border border-rose/40 bg-warm-white px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
           >
             Add milestone
           </button>
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-[1.2fr_1fr] lg:grid-cols-[1.3fr_1fr_1fr]">
         {milestones.map((milestone, index) => {
           const togetherDurationLabel = getTogetherDurationLabel(milestone.date);
           return (
             <article
               key={`${milestone.name}-${index}`}
-              className="rounded-2xl border border-gold/25 bg-warm-white p-4 shadow-sm sm:p-5"
+              className={`rounded-2xl border border-gold/25 bg-warm-white/85 p-4 shadow-sm sm:p-5 ${
+                index === 0 ? "md:row-span-2 md:p-6 lg:bg-parchment" : ""
+              }`}
             >
               <div className="mb-3 flex items-start justify-between gap-3">
                 <EditableText
@@ -277,13 +353,8 @@ export function Countdowns() {
                 {isEditing ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      updateContent(
-                        "milestones",
-                        milestones.filter((_, currentIndex) => currentIndex !== index)
-                      )
-                    }
-                    className="rounded border border-rose/30 px-2 py-1 text-xs text-rose transition hover:bg-rose/10"
+                    onClick={() => removeMilestone(milestone, index)}
+                    className="min-h-11 rounded-full border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
                   >
                     Remove
                   </button>
@@ -292,7 +363,7 @@ export function Countdowns() {
 
               <EditableText
                 value={milestone.label}
-                className="text-xs uppercase tracking-[0.12em] text-text-light"
+                className="text-sm font-medium text-text-light"
                 onChange={(label) => {
                   const next = [...milestones];
                   next[index] = { ...milestone, label };
@@ -312,6 +383,7 @@ export function Countdowns() {
               <div className="mt-3">
                 <EditableDate
                   value={milestone.date}
+                  ariaLabel={`Date for ${milestone.name || "milestone"}`}
                   onChange={(date) => {
                     const next = [...milestones];
                     next[index] = { ...milestone, date };
@@ -349,7 +421,7 @@ export function Countdowns() {
               return (
                 <article
                   key={birthday.id}
-                  className="rounded-xl border border-gold/20 bg-warm-white p-4"
+                  className="rounded-2xl border border-gold/20 bg-gold-light/25 p-4"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <span className="text-xl">{birthday.icon}</span>
@@ -372,19 +444,86 @@ export function Countdowns() {
             <button
               type="button"
               onClick={() => setIsDateModalOpen(true)}
-              className="rounded-full border border-rose/40 px-4 py-2 text-sm text-rose transition hover:bg-rose/10"
+              className="min-h-11 rounded-full border border-rose/40 bg-warm-white px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
             >
               Add date
             </button>
           ) : null}
         </div>
 
+        {isEditing && isDateModalOpen ? (
+          <div className="mb-5 rounded-2xl border border-gold/25 bg-warm-white/85 p-4">
+            <div className="grid gap-3 sm:grid-cols-[1fr_180px_100px]">
+              <label className="block text-sm text-text-muted">
+                Name
+                <input
+                  type="text"
+                  value={newDateName}
+                  onChange={(event) => {
+                    setNewDateName(event.target.value);
+                    setNewDateError(null);
+                  }}
+                  className="mt-1 min-h-11 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                />
+              </label>
+              <label className="block text-sm text-text-muted">
+                Date
+                <input
+                  type="date"
+                  value={newDateValue}
+                  onChange={(event) => {
+                    setNewDateValue(event.target.value);
+                    setNewDateError(null);
+                  }}
+                  className="mt-1 min-h-11 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                />
+              </label>
+              <label className="block text-sm text-text-muted">
+                Icon
+                <input
+                  type="text"
+                  value={newDateIcon}
+                  onChange={(event) => setNewDateIcon(event.target.value)}
+                  className="mt-1 min-h-11 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                  placeholder="*"
+                />
+              </label>
+            </div>
+            <label className="mt-3 inline-flex items-center gap-2 text-sm text-text-muted">
+              <input
+                type="checkbox"
+                checked={newDateIsRecurring}
+                onChange={(event) => setNewDateIsRecurring(event.target.checked)}
+                className="h-4 w-4 rounded border-gold/35 text-rose-ink focus:ring-rose/30"
+              />
+              Repeats yearly (countdown uses month and day)
+            </label>
+            {newDateError ? <p className="mt-3 text-sm text-rose-deep">{newDateError}</p> : null}
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={resetNewDate}
+                className="min-h-11 rounded-full border border-gold/35 px-4 py-2 text-sm text-text-muted transition hover:bg-cream active:scale-[0.98]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDate}
+                className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
+              >
+                Save date
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {dates.map((dateItem, index) => {
             return (
               <article
                 key={`${dateItem.name}-${index}`}
-                className="rounded-xl border border-gold/20 bg-warm-white p-4"
+                className="rounded-2xl border border-gold/20 bg-warm-white/85 p-4"
               >
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <EditableText
@@ -399,13 +538,8 @@ export function Countdowns() {
                   {isEditing ? (
                     <button
                       type="button"
-                      onClick={() =>
-                        updateContent(
-                          "dates",
-                          dates.filter((_, currentIndex) => currentIndex !== index)
-                        )
-                      }
-                      className="rounded border border-rose/30 px-2 py-1 text-xs text-rose transition hover:bg-rose/10"
+                      onClick={() => removeDate(dateItem, index)}
+                      className="min-h-11 rounded-full border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
                     >
                       Remove
                     </button>
@@ -424,6 +558,7 @@ export function Countdowns() {
                   {isEditing ? (
                     <EditableDate
                       value={dateItem.date}
+                      ariaLabel={`Date for ${dateItem.name || "important date"}`}
                       onChange={(date) => {
                         const next = [...dates];
                         next[index] = { ...dateItem, date };
@@ -447,7 +582,7 @@ export function Countdowns() {
                         next[index] = { ...dateItem, isRecurring: event.target.checked };
                         updateContent("dates", next);
                       }}
-                      className="h-4 w-4 rounded border-gold/35 text-rose focus:ring-rose/30"
+                      className="h-4 w-4 rounded border-gold/35 text-rose-ink focus:ring-rose/30"
                     />
                     Repeats yearly (year ignored)
                   </label>
@@ -460,96 +595,15 @@ export function Countdowns() {
         </div>
       </div>
 
-      <Modal
-        isOpen={isDateModalOpen}
-        title="Add Important Date"
-        onClose={() => {
-          setIsDateModalOpen(false);
-          setNewDateName("");
-          setNewDateValue("");
-          setNewDateIcon("");
-          setNewDateIsRecurring(false);
-        }}
-      >
-        <form
-          className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!newDateName.trim() || !newDateValue.trim()) {
-              return;
-            }
-
-            updateContent("dates", [
-              ...dates,
-              {
-                name: newDateName.trim(),
-                date: newDateValue,
-                icon: newDateIcon.trim() || "*",
-                isRecurring: newDateIsRecurring
-              }
-            ]);
-
-            setIsDateModalOpen(false);
-            setNewDateName("");
-            setNewDateValue("");
-            setNewDateIcon("");
-            setNewDateIsRecurring(false);
-          }}
-        >
-          <label className="block text-sm text-text-muted">
-            Name
-            <input
-              type="text"
-              value={newDateName}
-              onChange={(event) => setNewDateName(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
-              required
-            />
-          </label>
-          <label className="block text-sm text-text-muted">
-            Date
-            <input
-              type="date"
-              value={newDateValue}
-              onChange={(event) => setNewDateValue(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
-              required
-            />
-            {newDateIsRecurring ? (
-              <span className="mt-1 block text-xs text-text-light">
-                Pick any year. Countdown uses only month and day.
-              </span>
-            ) : null}
-          </label>
-          <label className="block text-sm text-text-muted">
-            Icon
-            <input
-              type="text"
-              value={newDateIcon}
-              onChange={(event) => setNewDateIcon(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gold/35 bg-cream px-3 py-2 outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
-              placeholder="*"
-            />
-          </label>
-          <label className="inline-flex items-center gap-2 text-sm text-text-muted">
-            <input
-              type="checkbox"
-              checked={newDateIsRecurring}
-              onChange={(event) => setNewDateIsRecurring(event.target.checked)}
-              className="h-4 w-4 rounded border-gold/35 text-rose focus:ring-rose/30"
-            />
-            Repeats yearly (no fixed starting year)
-          </label>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose transition hover:bg-rose/10"
-            >
-              Add
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {removedItem ? (
+        <UndoToast
+          message={removedItem.type === "milestone" ? "Milestone removed." : "Date removed."}
+          actionLabel="Undo"
+          onAction={restoreRemovedItem}
+          onDismiss={() => setRemovedItem(null)}
+        />
+      ) : null}
+      </div>
     </section>
   );
 }

@@ -119,7 +119,7 @@ export function Modal({ isOpen, title, onClose, children }: ModalProps) {
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded border border-gold/40 px-2 py-1 text-sm text-text-muted transition hover:bg-cream"
+            className="min-h-11 rounded border border-gold/40 px-4 py-2 text-sm text-text-muted transition hover:bg-cream"
           >
             Close
           </button>

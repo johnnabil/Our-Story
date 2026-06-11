@@ -11,7 +11,7 @@ export function Hero() {
     return (
       <section
         id="hero"
-        className="flex min-h-[92svh] items-center justify-center bg-gradient-to-b from-cream to-warm-white px-4 py-14 sm:px-6 sm:py-16 md:min-h-screen md:py-20"
+        className="flex min-h-[100dvh] items-center justify-center px-4 py-20 sm:px-6 md:py-24"
       >
         <p className="text-text-muted">Loading...</p>
       </section>
@@ -23,97 +23,92 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="relative flex min-h-[92svh] items-center justify-center bg-gradient-to-b from-cream via-warm-white to-cream px-4 py-14 sm:px-6 sm:py-16 md:min-h-screen md:py-20"
+      className="relative overflow-hidden px-4 py-8 sm:px-6 md:min-h-[calc(100dvh-4rem)] md:py-6"
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:gap-8">
-        <div className="w-56 max-w-full overflow-hidden rounded-3xl border-4 border-gold/40 shadow-lg aspect-3/4 sm:w-64 md:w-72">
-          <EditableImage
-            src={hero.photoUrl}
-            alt={`${hero.names.her} and ${hero.names.him}`}
-            width={432}
-            height={576}
-            fit="contain"
-            priority
-            sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, 288px"
-            className="h-full w-full"
-            currentPublicId={hero.photoPublicId}
-            onChange={(photoUrl, photoPublicId) => {
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-8 md:min-h-[calc(100dvh-7rem)] md:grid-cols-[0.9fr_1.1fr] lg:gap-14">
+        <div className="order-2 md:order-1">
+          <h1 className="flex max-w-[760px] flex-wrap items-baseline gap-x-3 gap-y-1 text-5xl font-semibold leading-[1.04] text-archive-ink sm:text-6xl lg:text-7xl">
+            <EditableText
+              value={hero.names.her}
+              as="span"
+              className="font-serif"
+              onChange={(her) =>
+                updateContent("hero", {
+                  ...hero,
+                  names: {
+                    ...hero.names,
+                    her
+                  }
+                })
+              }
+            />
+            <span className="font-serif text-gold">&</span>
+            <EditableText
+              value={hero.names.him}
+              as="span"
+              className="font-serif"
+              onChange={(him) =>
+                updateContent("hero", {
+                  ...hero,
+                  names: {
+                    ...hero.names,
+                    him
+                  }
+                })
+              }
+            />
+          </h1>
+
+          <EditableText
+            value={hero.subtitle}
+            as="p"
+            className="mt-5 max-w-[40rem] text-lg leading-8 text-text-muted sm:text-xl"
+            onChange={(subtitle) =>
               updateContent("hero", {
                 ...hero,
-                photoUrl,
-                photoPublicId
-              });
-            }}
+                subtitle
+              })
+            }
+          />
+
+          <EditableText
+            value={hero.quote}
+            as="blockquote"
+            className="mt-8 max-w-[42rem] border-l border-rose/40 pl-5 font-serif text-xl italic leading-[1.55] text-rose-deep sm:text-2xl"
+            onChange={(quote) =>
+              updateContent("hero", {
+                ...hero,
+                quote
+              })
+            }
           />
         </div>
 
-        <h1 className="flex flex-wrap items-center justify-center gap-2 text-3xl font-semibold leading-tight text-rose sm:gap-3 sm:text-5xl md:text-7xl">
-          <EditableText
-            value={hero.names.her}
-            as="span"
-            className="font-serif"
-            onChange={(her) =>
-              updateContent("hero", {
-                ...hero,
-                names: {
-                  ...hero.names,
-                  her
-                }
-              })
-            }
-          />
-          <span className="font-serif text-gold">&</span>
-          <EditableText
-            value={hero.names.him}
-            as="span"
-            className="font-serif"
-            onChange={(him) =>
-              updateContent("hero", {
-                ...hero,
-                names: {
-                  ...hero.names,
-                  him
-                }
-              })
-            }
-          />
-        </h1>
-
-        <EditableText
-          value={hero.subtitle}
-          as="p"
-          className="max-w-2xl text-base text-text-muted sm:text-lg md:text-xl"
-          onChange={(subtitle) =>
-            updateContent("hero", {
-              ...hero,
-              subtitle
-            })
-          }
-        />
-
-        <EditableText
-          value={hero.quote}
-          as="blockquote"
-          className="max-w-3xl font-serif text-xl italic text-rose-deep sm:text-2xl md:text-3xl"
-          onChange={(quote) =>
-            updateContent("hero", {
-              ...hero,
-              quote
-            })
-          }
-        />
+        <div className="order-1 md:order-2">
+          <div className="relative mx-auto w-full max-w-[360px] sm:max-w-[430px] md:mr-0 md:max-w-[520px]">
+            <div className="relative overflow-hidden rounded-[2rem] border border-gold/35 bg-warm-white shadow-[0_28px_80px_oklch(31%_0.042_292_/_0.16)] aspect-4/5">
+            <EditableImage
+              src={hero.photoUrl}
+              alt={`${hero.names.her} and ${hero.names.him}`}
+              width={720}
+              height={900}
+              fit="cover"
+              priority
+              sizes="(max-width: 768px) 100vw, 44vw"
+              className="h-full w-full"
+              currentPublicId={hero.photoPublicId}
+              onChange={(photoUrl, photoPublicId) => {
+                updateContent("hero", {
+                  ...hero,
+                  photoUrl,
+                  photoPublicId
+                });
+              }}
+            />
+            </div>
+          </div>
+        </div>
       </div>
-
-      <a
-        href="#countdowns"
-        aria-label="Jump to the countdowns section"
-        className="group absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-gold/40 bg-warm-white/70 px-3 py-1.5 text-xs font-medium text-text-muted transition hover:border-rose/35 hover:text-rose sm:bottom-6 sm:text-sm"
-      >
-        <span>See Countdowns</span>
-        <span aria-hidden className="text-base leading-none transition group-hover:translate-y-0.5">
-          ↓
-        </span>
-      </a>
     </section>
   );
 }

@@ -9,6 +9,7 @@ interface EditableDateProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  ariaLabel?: string;
 }
 
 function formatDate(value: string) {
@@ -28,7 +29,7 @@ function formatDate(value: string) {
   }).format(parsedDate);
 }
 
-export function EditableDate({ value, onChange, className }: EditableDateProps) {
+export function EditableDate({ value, onChange, className, ariaLabel = "Editable date" }: EditableDateProps) {
   const { isEditing } = useEdit();
 
   const dateInputValue = useMemo(() => {
@@ -45,6 +46,7 @@ export function EditableDate({ value, onChange, className }: EditableDateProps) 
         type="date"
         value={dateInputValue}
         onChange={(event) => onChange(event.target.value)}
+        aria-label={ariaLabel}
         className={`rounded-md border border-rose/60 bg-warm-white px-2 py-1 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 ${
           className ?? ""
         }`}

@@ -467,10 +467,10 @@ export function ImageCropperModal({
               key={option.id}
               type="button"
               onClick={() => setPreset(option.id)}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
+              className={`min-h-11 rounded-full border px-4 py-2 text-xs transition ${
                 preset === option.id
-                  ? "border-rose/45 bg-rose/10 text-rose"
-                  : "border-gold/30 text-text-muted hover:border-rose/35 hover:text-rose"
+                  ? "border-rose/45 bg-rose/10 text-rose-ink"
+                  : "border-gold/30 text-text-muted hover:border-rose/35 hover:text-rose-ink"
               }`}
             >
               {option.label}
@@ -579,12 +579,12 @@ export function ImageCropperModal({
 
         {error ? <p className="text-sm text-rose-deep">{error}</p> : null}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={isApplying}
-            className="rounded-full border border-gold/40 px-4 py-2 text-sm text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-11 rounded-full border border-gold/40 px-4 py-2 text-sm text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70"
           >
             Cancel
           </button>
@@ -594,7 +594,7 @@ export function ImageCropperModal({
               void handleApply();
             }}
             disabled={!canCrop || isApplying}
-            className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isApplying ? "Applying..." : "Use crop"}
           </button>

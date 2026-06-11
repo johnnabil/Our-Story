@@ -14,14 +14,14 @@ export default function HomePage() {
     <>
       <ScrollPositionManager />
       <Nav />
-      <main className="bg-cream pb-28 text-text md:pb-20">
+      <main className="archive-grain bg-cream pb-28 text-text md:pb-20">
         <Hero />
-        <Countdowns />
-        <Gallery />
-        <Story />
-        <Profiles />
         <Letter />
+        <Story />
+        <Gallery />
+        <Countdowns />
         <Dreams />
+        <Profiles />
       </main>
       <EditBar />
     </>

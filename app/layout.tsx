@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
+import { Libre_Baskerville, Nunito_Sans } from "next/font/google";
 
 import { Providers } from "@/components/providers/Providers";
 
 import "@/app/globals.css";
 
-const cormorant = Cormorant_Garamond({
+const archiveSerif = Libre_Baskerville({
   variable: "--font-cormorant",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"]
+  weight: ["400", "700"],
+  style: ["normal", "italic"]
 });
 
-const dmSans = DM_Sans({
+const archiveSans = Nunito_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
   weight: ["400", "500", "700"]
@@ -37,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${cormorant.variable} ${dmSans.variable} font-sans antialiased`}>
+      <body className={`${archiveSerif.variable} ${archiveSans.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

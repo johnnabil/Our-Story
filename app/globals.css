@@ -1,18 +1,23 @@
 @import "tailwindcss";
 
+/* Palette strategy: warm archive neutrals with one rose accent and muted gold as material support. */
 @theme {
-  --color-cream: #f2eae0;
-  --color-warm-white: #faf6f1;
-  --color-parchment: #b4d3d9;
-  --color-rose: #bda6ce;
-  --color-rose-light: #d5c6e0;
-  --color-rose-deep: #9b8ec7;
-  --color-gold: #b4d3d9;
-  --color-gold-light: #d7e9ec;
-  --color-text: #4f456e;
-  --color-text-muted: #6d628f;
-  --color-text-light: #8d82ad;
-  --color-border: rgba(155, 142, 199, 0.25);
+  --color-cream: oklch(95.4% 0.015 78);
+  --color-warm-white: oklch(98.6% 0.009 78);
+  --color-parchment: oklch(91.8% 0.023 80);
+  --color-rose: oklch(70% 0.07 348);
+  --color-rose-light: oklch(88% 0.033 348);
+  --color-rose-ink: oklch(39% 0.105 348);
+  --color-rose-deep: oklch(31% 0.085 342);
+  --color-gold: oklch(67% 0.07 86);
+  --color-gold-light: oklch(92% 0.035 86);
+  --color-cairo-blue: oklch(39% 0.07 236);
+  --color-cairo-blue-soft: oklch(90% 0.028 238);
+  --color-archive-ink: oklch(25% 0.047 280);
+  --color-text: oklch(31% 0.042 292);
+  --color-text-muted: oklch(43% 0.04 292);
+  --color-text-light: oklch(55% 0.035 292);
+  --color-border: oklch(39% 0.085 348 / 0.22);
 
   --font-serif: var(--font-cormorant);
   --font-sans: var(--font-dm-sans);
@@ -37,7 +42,9 @@ html {
 }
 
 body {
-  background-color: var(--color-cream);
+  background:
+    radial-gradient(circle at 15% 0%, oklch(88% 0.035 348 / 0.42), transparent 32rem),
+    linear-gradient(180deg, var(--color-warm-white), var(--color-cream) 36rem);
   color: var(--color-text);
 }
 
@@ -45,14 +52,32 @@ section[id] {
   scroll-margin-top: 5.5rem;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .gallery-hover-target:hover .gallery-hover-caption {
-    opacity: 1;
-  }
-}
-
 @media (min-width: 768px) {
   section[id] {
     scroll-margin-top: 6.5rem;
   }
+}
+
+::selection {
+  background: var(--color-rose-light);
+  color: var(--color-rose-deep);
+}
+
+.archive-grain {
+  position: relative;
+  isolation: isolate;
+}
+
+.archive-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(90deg, oklch(31% 0.042 292 / 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, oklch(31% 0.042 292 / 0.04) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
 }

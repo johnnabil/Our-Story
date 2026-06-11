@@ -1,8 +1,7 @@
 "use client";
 
-import useEmblaCarousel from "embla-carousel-react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 
 import { EditableText } from "@/components/edit/EditableText";
@@ -19,7 +18,10 @@ import { GALLERY_CATEGORIES, type GalleryCategory } from "@/lib/types";
 import { uploadImage, deleteImageAsset } from "@/lib/upload";
 
 type FilterCategory = "all" | GalleryCategory;
-const AUTO_ROTATE_MS = 1800;
+const DELETE_IMAGE_CONFIRMATION =
+  "Delete this photo from Cloudinary and remove it from the gallery? This cannot be undone.";
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type QueuedPhotoStatus = "ready" | "needs-crop" | "uploading" | "uploaded" | "error";
 
@@ -47,6 +49,40 @@ function captionFromFileName(fileName: string) {
   return baseName.replace(/[-_]+/g, " ");
 }
 
+function previewTileClass(index: number) {
+  const pattern = [
+    "col-span-2 row-span-3",
+    "row-span-2",
+    "row-span-2",
+    "row-span-3",
+    "col-span-2 row-span-2",
+    "row-span-2",
+    "row-span-3",
+    "row-span-2",
+    "col-span-2 row-span-3",
+    "row-span-2"
+  ];
+
+  return pattern[index % pattern.length];
+}
+
+function fullGalleryTileClass(index: number) {
+  const pattern = [
+    "row-span-3",
+    "row-span-2",
+    "row-span-4",
+    "row-span-2",
+    "row-span-3",
+    "row-span-2",
+    "row-span-3",
+    "row-span-4",
+    "row-span-2",
+    "row-span-3"
+  ];
+
+  return pattern[index % pattern.length];
+}
+
 export function Gallery() {
   const { content, isLoading, updateContent } = useContent();
   const { isEditing } = useEdit();
@@ -54,6 +90,7 @@ export function Gallery() {
   const [activeCategory, setActiveCategory] = useState<FilterCategory>("all");
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultNewCategory, setDefaultNewCategory] =
@@ -64,6 +101,9 @@ export function Gallery() {
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const lightboxRef = useRef<HTMLDivElement | null>(null);
+  const galleryDialogRef = useRef<HTMLDivElement | null>(null);
+  const lightboxTriggerRef = useRef<HTMLButtonElement | null>(null);
   const gallery = useMemo(() => content?.gallery ?? [], [content]);
 
   const filtered = useMemo(
@@ -73,44 +113,30 @@ export function Gallery() {
         .filter(
           ({ photo }) =>
             activeCategory === "all" || photo.category === activeCategory,
-        ),
+        )
+        .reverse(),
     [gallery, activeCategory],
   );
 
   const canInteract = filtered.length >= 2;
-  const canLoopSlides = canInteract;
-  const emblaOptions = useMemo(
-    () => ({
-      loop: canLoopSlides,
-      align: "start" as const,
-    }),
-    [canLoopSlides],
-  );
-  const [emblaRef, emblaApi] = useEmblaCarousel(emblaOptions);
+  const previewItems = filtered.slice(0, 10);
+  const hiddenPhotoCount = Math.max(0, filtered.length - previewItems.length);
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<FilterCategory, number>([["all", gallery.length]]);
 
-  useEffect(() => {
-    if (!emblaApi) {
-      return;
-    }
+    GALLERY_CATEGORIES.forEach((category) => {
+      counts.set(
+        category,
+        gallery.filter((photo) => photo.category === category).length,
+      );
+    });
 
-    const onSelect = () => {
-      setSelectedSlideIndex(emblaApi.selectedScrollSnap());
-    };
-
-    onSelect();
-    emblaApi.on("select", onSelect);
-    emblaApi.on("reInit", onSelect);
-
-    return () => {
-      emblaApi.off("select", onSelect);
-      emblaApi.off("reInit", onSelect);
-    };
-  }, [emblaApi]);
+    return counts;
+  }, [gallery]);
 
   useEffect(() => {
     setSelectedSlideIndex(0);
-    emblaApi?.scrollTo(0, true);
-  }, [activeCategory, emblaApi]);
+  }, [activeCategory]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -122,33 +148,12 @@ export function Gallery() {
     if (selectedSlideIndex >= filtered.length) {
       const clampedIndex = filtered.length - 1;
       setSelectedSlideIndex(clampedIndex);
-      emblaApi?.scrollTo(clampedIndex, true);
     }
 
     if (lightboxIndex !== null && lightboxIndex >= filtered.length) {
       setLightboxIndex(filtered.length - 1);
     }
-  }, [filtered.length, selectedSlideIndex, lightboxIndex, emblaApi]);
-
-  useEffect(() => {
-    if (
-      !emblaApi ||
-      !canInteract ||
-      isEditing ||
-      lightboxIndex !== null ||
-      isAddModalOpen
-    ) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      emblaApi.scrollNext();
-    }, AUTO_ROTATE_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [emblaApi, canInteract, isEditing, lightboxIndex, isAddModalOpen]);
+  }, [filtered.length, selectedSlideIndex, lightboxIndex]);
 
   const currentLightboxItem =
     lightboxIndex !== null ? filtered[lightboxIndex] : null;
@@ -161,23 +166,17 @@ export function Gallery() {
     (queuedPhoto) => queuedPhoto.croppedFile !== null,
   );
   const isCropModalOpen = cropQueueId !== null && cropSourceFile !== null;
-  const slideSizeClass =
-    "flex-[0_0_80%] sm:flex-[0_0_58%] md:flex-[0_0_45%] lg:flex-[0_0_34%] xl:flex-[0_0_30%]";
+  const photoPositionLabel = filtered.length
+    ? `${filtered.length} ${filtered.length === 1 ? "photo" : "photos"}`
+    : "0 photos";
 
-  const scrollToSlide = useCallback(
-    (index: number) => {
-      emblaApi?.scrollTo(index);
-    },
-    [emblaApi],
-  );
-
-  const scrollToPreviousSlide = useCallback(() => {
-    emblaApi?.scrollPrev();
-  }, [emblaApi]);
-
-  const scrollToNextSlide = useCallback(() => {
-    emblaApi?.scrollNext();
-  }, [emblaApi]);
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+    window.requestAnimationFrame(() => {
+      lightboxTriggerRef.current?.focus();
+      lightboxTriggerRef.current = null;
+    });
+  }, []);
 
   const goToPrevious = useCallback(() => {
     setLightboxIndex((previous) => {
@@ -204,19 +203,115 @@ export function Gallery() {
       return;
     }
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusable = lightboxRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    if (focusable && focusable.length > 0) {
+      focusable[0].focus();
+    } else {
+      lightboxRef.current?.focus();
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setLightboxIndex(null);
+        event.preventDefault();
+        closeLightbox();
+        return;
       } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
         goToPrevious();
+        return;
       } else if (event.key === "ArrowRight") {
+        event.preventDefault();
         goToNext();
+        return;
+      }
+
+      if (event.key !== "Tab" || !lightboxRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        lightboxRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (!active || active === first || !lightboxRef.current.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (!active || active === last || !lightboxRef.current.contains(active)) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxIndex, goToPrevious, goToNext]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [lightboxIndex, closeLightbox, goToPrevious, goToNext]);
+
+  useEffect(() => {
+    if (lightboxIndex === null || filtered.length <= 1) {
+      return;
+    }
+
+    const previous = filtered[(lightboxIndex - 1 + filtered.length) % filtered.length];
+    const next = filtered[(lightboxIndex + 1) % filtered.length];
+
+    [previous, next].forEach((item) => {
+      const image = new window.Image();
+      image.decoding = "async";
+      image.src = item.photo.url;
+    });
+  }, [filtered, lightboxIndex]);
+
+  useEffect(() => {
+    if (!isGalleryModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    window.requestAnimationFrame(() => {
+      const focusable = galleryDialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (focusable && focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        galleryDialogRef.current?.focus();
+      }
+    });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsGalleryModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isGalleryModalOpen]);
 
   if (isLoading || !content) {
     return (
@@ -242,6 +337,10 @@ export function Gallery() {
   const handlePhotoDelete = async (index: number) => {
     const photo = gallery[index];
     if (!photo) {
+      return;
+    }
+
+    if (!window.confirm(DELETE_IMAGE_CONFIRMATION)) {
       return;
     }
 
@@ -401,130 +500,134 @@ export function Gallery() {
   return (
     <section
       id="gallery"
-      className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20"
+      className="px-4 py-16 sm:px-6 md:py-24"
     >
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h2 className="font-serif text-3xl text-rose sm:text-4xl md:text-5xl">
-          Gallery
+      <div className="mx-auto w-full max-w-7xl">
+      <div className="mb-8 flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+        <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">
+          Photos
         </h2>
+        </div>
         {isEditing ? (
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="rounded-full border border-rose/40 px-4 py-2 text-sm text-rose transition hover:bg-rose/10"
+            className="min-h-11 rounded-full border border-rose/40 bg-warm-white px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
           >
             Add photos
           </button>
         ) : null}
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveCategory("all")}
-          className={`rounded-full border px-3 py-1.5 text-sm transition ${
-            activeCategory === "all"
-              ? "border-rose/50 bg-rose/10 text-rose"
-              : "border-gold/30 text-text-muted hover:border-rose/30 hover:text-rose"
-          } whitespace-nowrap`}
-        >
-          All
-        </button>
-        {GALLERY_CATEGORIES.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => setActiveCategory(category)}
-            className={`rounded-full border px-3 py-1.5 text-sm capitalize transition ${
-              activeCategory === category
-                ? "border-rose/50 bg-rose/10 text-rose"
-                : "border-gold/30 text-text-muted hover:border-rose/30 hover:text-rose"
-            } whitespace-nowrap`}
+      <div className="mb-6 flex flex-col gap-4 border-y border-gold/20 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-xs">
+          <span className="text-xs font-medium text-text-light">Memory type</span>
+          <span className="relative block">
+          <select
+            value={activeCategory}
+            onChange={(event) =>
+              setActiveCategory(event.target.value as FilterCategory)
+            }
+            className="min-h-11 w-full appearance-none rounded-full border border-gold/35 bg-warm-white py-2 pl-4 pr-11 text-sm capitalize text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
           >
-            {category}
-          </button>
-        ))}
+            <option value="all">All</option>
+            {GALLERY_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-4 top-1/2 h-2 w-2 -translate-y-[65%] rotate-45 border-b border-r border-text-light"
+          />
+          </span>
+        </label>
+
+        {filtered.length ? (
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <p className="flex min-h-11 items-center rounded-md border border-gold/25 bg-warm-white px-3 text-sm tabular-nums text-text-muted">
+              {photoPositionLabel}
+            </p>
+          </div>
+        ) : null}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {(["all", ...GALLERY_CATEGORIES] as FilterCategory[]).map((category) => {
+            const count = categoryCounts.get(category) ?? 0;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={`min-h-10 shrink-0 rounded-full border px-3 py-1.5 text-xs capitalize transition active:scale-[0.98] ${
+                  activeCategory === category
+                    ? "border-rose/45 bg-rose-light/40 text-rose-ink"
+                    : "border-gold/25 bg-warm-white text-text-muted hover:border-rose/30 hover:text-rose-ink"
+                }`}
+              >
+                {category} <span className="tabular-nums text-text-light">{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {filtered.length ? (
         <>
-          <div className="relative">
-            <div ref={emblaRef} className="overflow-hidden">
-              <div className="flex gap-3 sm:gap-4">
-                {filtered.map(({ photo, index }, visibleIndex) => (
-                  <div
-                    key={`${photo.url}-${index}`}
-                    className={`min-w-0 shrink-0 ${slideSizeClass}`}
-                  >
-                    <article className="gallery-hover-target group relative">
-                      <button
-                        type="button"
-                        onClick={() => setLightboxIndex(visibleIndex)}
-                        className="relative block w-full"
-                      >
-                        <div className="relative aspect-4/3 w-full overflow-hidden rounded-2xl border border-gold/20 bg-warm-white shadow-sm">
-                          <Image
-                            src={photo.url}
-                            alt={photo.caption}
-                            width={1600}
-                            height={1200}
-                            sizes="(max-width: 640px) 80vw, (max-width: 768px) 58vw, (max-width: 1024px) 45vw, 30vw"
-                            className="h-full w-full object-contain"
-                          />
-                          <span className="gallery-hover-caption pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-text/65 via-text/20 to-transparent p-3 text-left text-xs text-warm-white opacity-0 transition-opacity duration-200 sm:p-4 sm:text-sm">
-                            {photo.caption}
-                          </span>
-                        </div>
-                      </button>
-                    </article>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {canInteract ? (
-              <>
-                <button
-                  type="button"
-                  onClick={scrollToPreviousSlide}
-                  className="absolute left-3 top-1/2 hidden -translate-y-1/2 rounded border border-warm-white/35 bg-text/35 px-3 py-2 text-sm text-warm-white transition hover:bg-text/55 md:block"
-                  aria-label="Previous slide"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  onClick={scrollToNextSlide}
-                  className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-warm-white/35 bg-text/35 px-3 py-2 text-sm text-warm-white transition hover:bg-text/55 md:block"
-                  aria-label="Next slide"
-                >
-                  Next
-                </button>
-              </>
-            ) : null}
+          <div className="grid auto-rows-[88px] grid-cols-2 gap-3 sm:auto-rows-[104px] sm:grid-cols-4 lg:auto-rows-[118px] lg:grid-cols-6">
+            {previewItems.map(({ photo, index }, visibleIndex) => (
+              <button
+                key={`${photo.url}-${index}`}
+                type="button"
+                onClick={(event) => {
+                  lightboxTriggerRef.current = event.currentTarget;
+                  setSelectedSlideIndex(visibleIndex);
+                  if (isEditing) {
+                    return;
+                  }
+                  setLightboxIndex(visibleIndex);
+                }}
+                className={`group relative block overflow-hidden rounded-2xl border bg-warm-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_50px_oklch(31%_0.042_292_/_0.12)] active:scale-[0.99] ${
+                  selectedSlideIndex === visibleIndex && isEditing
+                    ? "border-rose/60 ring-2 ring-rose/20"
+                    : "border-gold/20"
+                } ${previewTileClass(visibleIndex)}`}
+              >
+                <Image
+                  src={photo.url}
+                  alt={photo.caption}
+                  width={900}
+                  height={1200}
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  {photo.caption}
+                </span>
+              </button>
+            ))}
           </div>
 
-          {canInteract ? (
-            <div className="mt-4 flex items-center justify-center gap-2">
-              {filtered.map((_, index) => (
-                <button
-                  key={`dot-${index}`}
-                  type="button"
-                  onClick={() => scrollToSlide(index)}
-                  className={`h-2.5 w-2.5 rounded-full border transition ${
-                    index === selectedSlideIndex
-                      ? "border-rose bg-rose"
-                      : "border-gold/50 bg-transparent hover:border-rose/50"
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
-            </div>
-          ) : null}
+          <div className="mt-5 flex flex-col items-start justify-between gap-3 border-t border-gold/20 pt-5 sm:flex-row sm:items-center">
+            <p className="text-sm text-text-muted">
+              Showing {previewItems.length} of {filtered.length} photos
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsGalleryModalOpen(true)}
+              className="min-h-11 rounded-full border border-rose/40 bg-warm-white px-5 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
+            >
+              {hiddenPhotoCount > 0 ? `View all photos (${filtered.length})` : "Open gallery"}
+            </button>
+          </div>
 
           {isEditing && activeSlide ? (
             <div className="mt-4 rounded-2xl border border-gold/20 bg-warm-white p-4">
-              <p className="mb-3 text-xs uppercase tracking-[0.12em] text-text-light">
+              <p className="mb-3 text-xs font-medium text-text-light">
                 Edit current slide
               </p>
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -533,7 +636,7 @@ export function Gallery() {
                   onClick={() => {
                     void handlePhotoDelete(activeSlide.index);
                   }}
-                  className="rounded border border-rose/30 px-2 py-1 text-xs text-rose transition hover:bg-rose/10"
+                  className="min-h-11 rounded border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose/10"
                 >
                   Delete photo
                 </button>
@@ -547,7 +650,7 @@ export function Gallery() {
                     };
                     updateContent("gallery", next);
                   }}
-                  className="rounded border border-gold/30 bg-cream px-2 py-1 text-xs capitalize text-text"
+                  className="min-h-11 rounded border border-gold/30 bg-cream px-3 py-2 text-xs capitalize text-text"
                 >
                   {GALLERY_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
@@ -581,64 +684,205 @@ export function Gallery() {
           ) : null}
         </div>
       )}
+      </div>
 
-      {currentLightboxItem ? (
-        <div className="fixed inset-0 z-50 bg-text/90 p-3 sm:p-6">
-          <button
-            type="button"
-            onClick={() => setLightboxIndex(null)}
-            className="absolute right-3 top-3 rounded border border-warm-white/30 px-3 py-1 text-xs text-warm-white transition hover:bg-warm-white/10 sm:right-4 sm:top-4 sm:text-sm"
+      {isGalleryModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 bg-text/75 p-3 sm:p-5"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsGalleryModalOpen(false);
+            }
+          }}
+          role="presentation"
+        >
+          <div
+            ref={galleryDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="All photos"
+            tabIndex={-1}
+            className="mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-gold/25 bg-cream outline-none shadow-2xl"
           >
-            Close
-          </button>
-          <div className="mx-auto flex h-full max-w-5xl flex-col items-center justify-center gap-3 sm:gap-4">
-            <div className="relative max-h-[78vh] w-full overflow-hidden rounded-2xl border border-warm-white/20 sm:max-h-[85vh]">
-              <Image
-                src={currentLightboxItem.photo.url}
-                alt={currentLightboxItem.photo.caption}
-                width={1600}
-                height={1200}
-                sizes="100vw"
-                className="max-h-[78vh] w-full object-contain sm:max-h-[85vh]"
-              />
+            <div className="flex shrink-0 flex-col gap-3 border-b border-gold/20 bg-warm-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div>
+                <h3 className="font-serif text-3xl text-rose-ink">All Photos</h3>
+                <p className="mt-1 text-sm text-text-muted">{photoPositionLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsGalleryModalOpen(false)}
+                className="min-h-11 rounded-full border border-gold/35 px-4 py-2 text-sm text-text-muted transition hover:bg-cream active:scale-[0.98]"
+              >
+                Close
+              </button>
             </div>
 
-            {canInteract ? (
-              <div className="flex w-full max-w-sm items-center justify-center gap-3 sm:hidden">
+            <div className="shrink-0 overflow-x-auto border-b border-gold/20 bg-cream px-4 py-3 sm:px-5">
+              <div className="flex gap-2">
+                {(["all", ...GALLERY_CATEGORIES] as FilterCategory[]).map((category) => {
+                  const count = categoryCounts.get(category) ?? 0;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setActiveCategory(category)}
+                      className={`min-h-10 shrink-0 rounded-full border px-3 py-1.5 text-xs capitalize transition active:scale-[0.98] ${
+                        activeCategory === category
+                          ? "border-rose/45 bg-rose-light/40 text-rose-ink"
+                          : "border-gold/25 bg-warm-white text-text-muted hover:border-rose/30 hover:text-rose-ink"
+                      }`}
+                    >
+                      {category} <span className="tabular-nums text-text-light">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              {filtered.length ? (
+                <div className="grid auto-rows-[84px] grid-cols-2 gap-3 sm:auto-rows-[96px] sm:grid-cols-4 lg:auto-rows-[104px] lg:grid-cols-6">
+                  {filtered.map(({ photo, index }, visibleIndex) => (
+                    <button
+                      key={`${photo.url}-${index}`}
+                      type="button"
+                      onClick={(event) => {
+                        lightboxTriggerRef.current = event.currentTarget;
+                        setSelectedSlideIndex(visibleIndex);
+                        if (isEditing) {
+                          setIsGalleryModalOpen(false);
+                          return;
+                        }
+                        setIsGalleryModalOpen(false);
+                        setLightboxIndex(visibleIndex);
+                      }}
+                      className={`group relative block overflow-hidden rounded-xl border bg-warm-white text-left shadow-sm transition hover:-translate-y-0.5 active:scale-[0.99] ${
+                        selectedSlideIndex === visibleIndex && isEditing
+                          ? "border-rose/60 ring-2 ring-rose/20"
+                          : "border-gold/20"
+                      } ${fullGalleryTileClass(visibleIndex)}`}
+                    >
+                      <Image
+                        src={photo.url}
+                        alt={photo.caption}
+                        width={700}
+                        height={900}
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                        {photo.caption}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-gold/20 bg-warm-white p-8 text-center">
+                  <p className="text-text-muted">No photos in this category yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {currentLightboxItem ? (
+        <div
+          className="fixed inset-0 z-50 bg-text/92 p-3 sm:p-6"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeLightbox();
+            }
+          }}
+          role="presentation"
+        >
+          <div
+            ref={lightboxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              currentLightboxItem.photo.caption.trim()
+                ? `Photo preview: ${currentLightboxItem.photo.caption}`
+                : "Photo preview"
+            }
+            tabIndex={-1}
+            className="mx-auto flex h-full max-w-6xl flex-col outline-none"
+          >
+            <div className="flex min-h-16 shrink-0 items-center justify-between gap-4 px-1 pb-3 text-warm-white">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {currentLightboxItem.photo.caption || "Photo"}
+                </p>
+                <p className="mt-0.5 text-xs text-warm-white/70">
+                  {(lightboxIndex ?? 0) + 1} of {filtered.length}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeLightbox}
+                className="min-h-11 shrink-0 rounded-full border border-warm-white/30 bg-warm-white/10 px-4 py-2 text-sm text-warm-white transition hover:bg-warm-white/18 active:scale-[0.98]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center">
+              {canInteract ? (
                 <button
                   type="button"
                   onClick={goToPrevious}
-                  className="w-full rounded border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10"
+                  className="absolute left-0 top-1/2 z-10 hidden min-h-11 -translate-y-1/2 rounded-full border border-warm-white/25 bg-text/35 px-4 py-2 text-sm text-warm-white backdrop-blur transition hover:bg-text/55 active:scale-[0.98] md:block"
+                  aria-label="Previous photo"
                 >
-                  Prev
+                  Previous
+                </button>
+              ) : null}
+
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-warm-white/20 bg-text/25">
+                <Image
+                  key={currentLightboxItem.photo.url}
+                  src={currentLightboxItem.photo.url}
+                  alt={currentLightboxItem.photo.caption}
+                  width={1800}
+                  height={1400}
+                  sizes="100vw"
+                  unoptimized
+                  className="max-h-full w-auto max-w-full object-contain"
+                />
+              </div>
+
+              {canInteract ? (
+                <button
+                  type="button"
+                  onClick={goToNext}
+                  className="absolute right-0 top-1/2 z-10 hidden min-h-11 -translate-y-1/2 rounded-full border border-warm-white/25 bg-text/35 px-4 py-2 text-sm text-warm-white backdrop-blur transition hover:bg-text/55 active:scale-[0.98] md:block"
+                  aria-label="Next photo"
+                >
+                  Next
+                </button>
+              ) : null}
+            </div>
+
+            {canInteract ? (
+              <div className="flex shrink-0 gap-3 pt-3 md:hidden">
+                <button
+                  type="button"
+                  onClick={goToPrevious}
+                  className="min-h-11 flex-1 rounded-full border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10 active:scale-[0.98]"
+                  aria-label="Previous photo"
+                >
+                  Previous
                 </button>
                 <button
                   type="button"
                   onClick={goToNext}
-                  className="w-full rounded border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10"
+                  className="min-h-11 flex-1 rounded-full border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10 active:scale-[0.98]"
+                  aria-label="Next photo"
                 >
                   Next
                 </button>
               </div>
-            ) : null}
-
-            {canInteract ? (
-              <>
-                <button
-                  type="button"
-                  onClick={goToPrevious}
-                  className="absolute left-3 top-1/2 hidden -translate-y-1/2 rounded border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10 sm:block"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  onClick={goToNext}
-                  className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-warm-white/30 px-3 py-2 text-sm text-warm-white transition hover:bg-warm-white/10 sm:block"
-                >
-                  Next
-                </button>
-              </>
             ) : null}
           </div>
         </div>
@@ -705,13 +949,13 @@ export function Gallery() {
                       type="button"
                       onClick={() => removeQueuedPhoto(queuedPhoto.id)}
                       disabled={isUploading}
-                      className="shrink-0 rounded border border-rose/30 px-2 py-1 text-xs text-rose transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="min-h-11 shrink-0 rounded border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Remove
                     </button>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
+                  <div className="grid min-w-0 gap-2">
                     <input
                       type="text"
                       value={queuedPhoto.caption}
@@ -722,40 +966,42 @@ export function Gallery() {
                         }))
                       }
                       disabled={isUploading}
-                      className="rounded-md border border-gold/35 bg-warm-white px-3 py-2 text-sm text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 disabled:opacity-70"
+                      className="min-h-11 w-full rounded-md border border-gold/35 bg-warm-white px-3 py-2 text-sm text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 disabled:opacity-70"
                       placeholder="Memory caption"
                     />
-                    <select
-                      value={queuedPhoto.category}
-                      onChange={(event) =>
-                        updateQueuedPhoto(queuedPhoto.id, (current) => ({
-                          ...current,
-                          category: event.target.value as GalleryCategory,
-                        }))
-                      }
-                      disabled={isUploading}
-                      className="rounded-md border border-gold/35 bg-warm-white px-3 py-2 text-sm capitalize text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 disabled:opacity-70"
-                    >
-                      {GALLERY_CATEGORIES.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void openCropperForQueuedPhoto(queuedPhoto.id);
-                      }}
-                      disabled={isUploading || isPreparingImage}
-                      className="rounded border border-rose/30 px-3 py-2 text-xs text-rose transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isPreparingImage && cropQueueId === queuedPhoto.id
-                        ? "Preparing..."
-                        : queuedPhoto.croppedFile
-                          ? "Recrop"
-                          : "Crop"}
-                    </button>
+                    <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+                      <select
+                        value={queuedPhoto.category}
+                        onChange={(event) =>
+                          updateQueuedPhoto(queuedPhoto.id, (current) => ({
+                            ...current,
+                            category: event.target.value as GalleryCategory,
+                          }))
+                        }
+                        disabled={isUploading}
+                        className="min-h-11 w-full rounded-md border border-gold/35 bg-warm-white px-3 py-2 text-sm capitalize text-text outline-none focus:border-rose focus:ring-2 focus:ring-rose/20 disabled:opacity-70"
+                      >
+                        {GALLERY_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void openCropperForQueuedPhoto(queuedPhoto.id);
+                        }}
+                        disabled={isUploading || isPreparingImage}
+                        className="min-h-11 w-full rounded border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isPreparingImage && cropQueueId === queuedPhoto.id
+                          ? "Preparing..."
+                          : queuedPhoto.croppedFile
+                            ? "Recrop"
+                            : "Crop"}
+                      </button>
+                    </div>
                   </div>
 
                   {queuedPhoto.error ? (
@@ -778,7 +1024,7 @@ export function Gallery() {
             <button
               type="submit"
               disabled={isUploading || isPreparingImage || !queuedPhotos.length}
-              className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isUploading
                 ? `Uploading ${queuedPhotos.length}...`

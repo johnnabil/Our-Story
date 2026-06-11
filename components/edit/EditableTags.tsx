@@ -47,7 +47,7 @@ export function EditableTags({ tags, onChange, className }: EditableTagsProps) {
             <button
               type="button"
               onClick={() => removeTag(index)}
-              className="text-xs text-rose-deep transition hover:text-rose"
+              className="-my-2 -mr-3 flex h-11 w-11 items-center justify-center rounded-full text-sm text-rose-deep transition hover:bg-rose/10 hover:text-rose-ink"
               aria-label={`Remove ${tag}`}
             >
               x
@@ -75,14 +75,14 @@ export function EditableTags({ tags, onChange, className }: EditableTagsProps) {
                   setDraft("");
                 }
               }}
-              className="min-w-28 rounded-full border border-rose/60 bg-warm-white px-3 py-1 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+              className="min-h-11 min-w-28 rounded-full border border-rose/60 bg-warm-white px-4 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
               placeholder="New tag"
             />
           ) : (
             <button
               type="button"
               onClick={() => setIsAdding(true)}
-              className="rounded-full border border-dashed border-rose/60 px-3 py-1 text-sm text-rose transition hover:bg-rose/10"
+              className="min-h-11 rounded-full border border-dashed border-rose/60 px-4 py-2 text-sm text-rose-ink transition hover:bg-rose/10"
             >
               + Add
             </button>

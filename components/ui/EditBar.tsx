@@ -7,11 +7,27 @@ import type { FormEvent } from "react";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
 import { Modal } from "@/components/ui/Modal";
+import type { ContentKey } from "@/lib/types";
 
 interface ScrollAnchor {
   sectionId: string;
   offsetFromSectionTop: number;
   focusY: number;
+}
+
+const CONTENT_STATUS_LABELS: Record<ContentKey, string> = {
+  hero: "Cover",
+  milestones: "Milestones",
+  dates: "Dates",
+  gallery: "Photos",
+  story: "Story",
+  profiles: "Profiles",
+  letter: "Letter",
+  dreams: "Dreams"
+};
+
+function contentStatusLabel(key: ContentKey) {
+  return CONTENT_STATUS_LABELS[key];
 }
 
 function captureScrollAnchor(): ScrollAnchor | null {
@@ -76,7 +92,7 @@ function restoreAfterLayout(anchor: ScrollAnchor | null) {
 
 export function EditBar() {
   const { canEdit, isEditing, toggleEdit } = useEdit();
-  const { flushAll } = useContent();
+  const { flushAll, pendingKeys, lastSavedAt, lastSavedKey, lastSaveError } = useContent();
 
   const [mounted, setMounted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -146,6 +162,18 @@ export function EditBar() {
     setShowAuthModal(false);
   };
 
+  const saveStatusText = lastSaveError
+    ? lastSaveError
+    : pendingKeys.length > 0
+      ? pendingKeys.length === 1
+        ? `Saving ${contentStatusLabel(pendingKeys[0]).toLowerCase()}...`
+        : "Saving changes..."
+      : lastSavedAt
+        ? lastSavedKey
+          ? `${contentStatusLabel(lastSavedKey)} saved`
+          : "All changes saved"
+        : null;
+
   return (
     <>
       <div
@@ -160,13 +188,22 @@ export function EditBar() {
         <div className="rounded-full border border-gold/40 bg-warm-white/95 p-1 shadow-lg backdrop-blur-md">
           {isEditing ? (
             <div className="flex items-center gap-1">
+              {saveStatusText ? (
+                <span
+                  className="px-3 text-xs font-medium text-text-muted"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {saveStatusText}
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
                   void handleSaveAndExit();
                 }}
                 disabled={isSaving}
-                className="rounded-full border border-rose/40 px-3 py-1.5 text-xs font-medium text-rose transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:py-2 sm:text-sm"
+                className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               >
                 {isSaving ? "Saving..." : "Save & Exit"}
               </button>
@@ -174,7 +211,7 @@ export function EditBar() {
                 type="button"
                 onClick={toggleEditWithScrollPreservation}
                 disabled={isSaving}
-                className="rounded-full border border-gold/40 px-3 py-1.5 text-xs font-medium text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70 sm:px-4 sm:py-2 sm:text-sm"
+                className="min-h-11 rounded-full border border-gold/40 px-4 py-2 text-xs font-medium text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               >
                 Exit
               </button>
@@ -191,7 +228,7 @@ export function EditBar() {
 
                 toggleEditWithScrollPreservation();
               }}
-              className="rounded-full border border-rose/40 px-4 py-1.5 text-xs font-medium text-rose transition hover:bg-rose/10 sm:px-5 sm:py-2 sm:text-sm"
+              className="min-h-11 rounded-full border border-rose/40 px-5 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 sm:text-sm"
             >
               {canEdit ? "Edit Site" : "Edit"}
             </button>
@@ -225,7 +262,7 @@ export function EditBar() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose transition hover:bg-rose/10"
+              className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10"
             >
               Unlock
             </button>

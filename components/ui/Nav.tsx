@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type NavItem = {
   id: string;
@@ -9,90 +9,67 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "hero", label: "Home" },
-  { id: "countdowns", label: "Countdowns" },
-  { id: "gallery", label: "Gallery" },
-  { id: "story", label: "Story" },
-  { id: "profiles", label: "Profiles" },
   { id: "letter", label: "Letter" },
-  { id: "dreams", label: "Dreams" }
+  { id: "story", label: "Story" },
+  { id: "gallery", label: "Photos" },
+  { id: "countdowns", label: "Dates" },
+  { id: "dreams", label: "Dreams" },
+  { id: "profiles", label: "Us" }
 ];
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Nav() {
-  const [hasScrolled, setHasScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuDialogRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const onScroll = () => {
-      setHasScrolled(window.scrollY > 8);
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+    window.requestAnimationFrame(() => {
+      mobileMenuButtonRef.current?.focus();
+    });
   }, []);
 
-  const updateActiveSection = useCallback(() => {
+  useEffect(() => {
     const sections = NAV_ITEMS
-      .map((item) => item.id)
-      .map((id) => document.getElementById(id))
+      .map((item) => document.getElementById(item.id))
       .filter((element): element is HTMLElement => element !== null);
 
     if (!sections.length) {
       return;
     }
 
-    const scrollProbe = window.scrollY + 140;
-    const pageBottom = window.scrollY + window.innerHeight;
-    const documentBottom = document.documentElement.scrollHeight;
+    const visibleSections = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visibleSections.set(entry.target.id, entry.intersectionRatio);
+          } else {
+            visibleSections.delete(entry.target.id);
+          }
+        });
 
-    if (pageBottom >= documentBottom - 2) {
-      const lastSection = sections[sections.length - 1];
-      setActiveSection(lastSection.id);
-      return;
-    }
-
-    let nextActive = sections[0].id;
-    for (const section of sections) {
-      if (section.offsetTop <= scrollProbe) {
-        nextActive = section.id;
-      } else {
-        break;
+        const nextActive = [...visibleSections.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (nextActive) {
+          setActiveSection(nextActive);
+        }
+      },
+      {
+        rootMargin: "-28% 0px -58% 0px",
+        threshold: [0.01, 0.18, 0.4, 0.65]
       }
-    }
+    );
 
-    setActiveSection(nextActive);
-  }, []);
-
-  useEffect(() => {
-    let rafId: number | null = null;
-
-    const onViewportChange = () => {
-      if (rafId !== null) {
-        return;
-      }
-
-      rafId = window.requestAnimationFrame(() => {
-        updateActiveSection();
-        rafId = null;
-      });
-    };
-
-    onViewportChange();
-    window.addEventListener("scroll", onViewportChange, { passive: true });
-    window.addEventListener("resize", onViewportChange);
+    sections.forEach((section) => observer.observe(section));
 
     return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-      window.removeEventListener("scroll", onViewportChange);
-      window.removeEventListener("resize", onViewportChange);
+      observer.disconnect();
     };
-  }, [updateActiveSection]);
+  }, []);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -112,9 +89,48 @@ export function Nav() {
       return;
     }
 
+    const focusable = mobileMenuDialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    if (focusable && focusable.length > 0) {
+      focusable[0].focus();
+    } else {
+      mobileMenuDialogRef.current?.focus();
+    }
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsMobileMenuOpen(false);
+        event.preventDefault();
+        closeMobileMenu();
+        return;
+      }
+
+      if (event.key !== "Tab" || !mobileMenuDialogRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        mobileMenuDialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (!active || active === first || !mobileMenuDialogRef.current.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (!active || active === last || !mobileMenuDialogRef.current.contains(active)) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
@@ -122,7 +138,7 @@ export function Nav() {
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [isMobileMenuOpen]);
+  }, [isMobileMenuOpen, closeMobileMenu]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -150,33 +166,36 @@ export function Nav() {
     element.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const wrapperClassName = useMemo(
-    () =>
-      `sticky top-0 z-40 border-b transition-all ${
-        hasScrolled
-          ? "border-gold/35 bg-warm-white/80 backdrop-blur-md"
-          : "border-transparent bg-transparent"
-      }`,
-    [hasScrolled]
-  );
-
   return (
     <>
-      <header className={wrapperClassName}>
+      <header className="sticky top-0 z-40 border-b border-gold/25 bg-warm-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:hidden">
-          <span className="font-serif text-2xl text-rose">Our Story</span>
+          <span className="font-serif text-2xl text-rose-ink">Our Story</span>
           <button
+            ref={mobileMenuButtonRef}
             type="button"
             onClick={() => setIsMobileMenuOpen((previous) => !previous)}
             aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMobileMenuOpen}
-            className="rounded-md border border-gold/35 px-3 py-2 text-sm text-text transition hover:bg-cream"
+            aria-controls="mobile-navigation-dialog"
+            className="min-h-11 rounded-full border border-rose/30 bg-warm-white px-4 py-2 text-sm text-text transition hover:border-rose/50 hover:bg-rose-light/30 active:scale-[0.98]"
           >
             {isMobileMenuOpen ? "Close" : "Menu"}
           </button>
         </div>
 
-        <nav className="mx-auto hidden max-w-6xl items-center justify-center gap-2 px-4 py-3 md:flex">
+        <nav className="mx-auto hidden h-16 max-w-6xl items-center justify-between gap-5 px-4 md:flex">
+          <a
+            href="#hero"
+            onClick={(event) => {
+              event.preventDefault();
+              scrollToSection("hero");
+            }}
+            className="font-serif text-2xl text-rose-ink transition hover:text-rose-deep"
+          >
+            Our Story
+          </a>
+          <div className="flex items-center gap-1.5">
           {NAV_ITEMS.map((item) => (
             <a
               key={item.id}
@@ -185,15 +204,16 @@ export function Nav() {
                 event.preventDefault();
                 scrollToSection(item.id);
               }}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${
+              className={`rounded-full border px-3 py-1.5 text-sm transition active:scale-[0.98] ${
                 activeSection === item.id
-                  ? "border-rose/45 bg-rose/10 text-rose"
-                  : "border-gold/30 text-text-muted hover:border-rose/40 hover:text-rose"
+                  ? "border-rose/45 bg-rose-light/45 text-rose-ink"
+                  : "border-transparent text-text-muted hover:border-rose/30 hover:text-rose-ink"
               }`}
             >
               {item.label}
             </a>
           ))}
+          </div>
         </nav>
       </header>
 
@@ -202,24 +222,32 @@ export function Nav() {
           className="fixed inset-0 z-50 bg-text/75 md:hidden"
           onClick={(event) => {
             if (event.target === event.currentTarget) {
-              setIsMobileMenuOpen(false);
+              closeMobileMenu();
             }
           }}
           role="presentation"
         >
-          <div className="flex h-full w-full flex-col bg-cream px-6 py-8">
+          <div
+            ref={mobileMenuDialogRef}
+            id="mobile-navigation-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Site navigation"
+            tabIndex={-1}
+            className="flex h-full w-full flex-col bg-cream px-6 py-8 outline-none"
+          >
             <div className="mb-8 flex items-center justify-between">
-              <span className="font-serif text-3xl text-rose">Navigate</span>
+              <span className="font-serif text-3xl text-rose-ink">Navigate</span>
               <button
                 type="button"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-md border border-gold/35 px-3 py-2 text-sm text-text transition hover:bg-warm-white"
+                onClick={closeMobileMenu}
+                className="min-h-11 rounded-full border border-rose/30 px-4 py-2 text-sm text-text transition hover:bg-warm-white active:scale-[0.98]"
               >
                 Close
               </button>
             </div>
 
-            <nav className="flex flex-1 flex-col justify-center gap-3">
+            <nav className="flex flex-1 flex-col justify-center gap-3" aria-label="Mobile site navigation">
               {NAV_ITEMS.map((item) => (
                 <a
                   key={item.id}
@@ -227,11 +255,11 @@ export function Nav() {
                   onClick={(event) => {
                     event.preventDefault();
                     scrollToSection(item.id);
-                    setIsMobileMenuOpen(false);
+                    closeMobileMenu();
                   }}
-                  className={`rounded-xl border px-4 py-3 text-lg transition ${
+                  className={`min-h-11 rounded-2xl border px-4 py-3 text-lg transition active:scale-[0.98] ${
                     activeSection === item.id
-                      ? "border-rose/45 bg-rose/10 text-rose"
+                      ? "border-rose/45 bg-rose-light/45 text-rose-ink"
                       : "border-gold/30 bg-warm-white text-text-muted"
                   }`}
                 >

@@ -8,6 +8,7 @@ import { EditableTags } from "@/components/edit/EditableTags";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
+import { UndoToast } from "@/components/ui/UndoToast";
 import type { Profile, Profiles as ProfilesType } from "@/lib/types";
 
 type ProfileKey = keyof ProfilesType;
@@ -16,6 +17,18 @@ interface NewFavouriteState {
   key: string;
   value: string;
 }
+
+type RemovedProfileItem =
+  | {
+      type: "favourite";
+      key: string;
+      value: string;
+    }
+  | {
+      type: "gift";
+      value: string;
+      index: number;
+    };
 
 function getFoodFavouriteKey(favourites: Record<string, string>) {
   return Object.keys(favourites).find((key) => key.trim().toLowerCase() === "food");
@@ -70,6 +83,13 @@ function parseGiftItems(giftsValue: string) {
     .filter(Boolean);
 }
 
+function visibleGiftSummary(gifts: string[]) {
+  return {
+    visible: gifts.slice(0, 6),
+    remainingCount: Math.max(0, gifts.length - 6)
+  };
+}
+
 function ProfileCard({
   title,
   profile,
@@ -91,8 +111,11 @@ function ProfileCard({
     ([key]) => key.trim().toLowerCase() !== "food"
   );
   const giftItems = parseGiftItems(profile.gifts);
+  const giftSummary = visibleGiftSummary(giftItems);
   const [isAddingGift, setIsAddingGift] = useState(false);
+  const [showAllGifts, setShowAllGifts] = useState(false);
   const [newGift, setNewGift] = useState("");
+  const [removedProfileItem, setRemovedProfileItem] = useState<RemovedProfileItem | null>(null);
 
   const updateGifts = (nextGifts: string[]) => {
     onProfileChange({
@@ -101,12 +124,47 @@ function ProfileCard({
     });
   };
 
+  const removeFavouriteWithUndo = (key: string, value: string) => {
+    setRemovedProfileItem({ type: "favourite", key, value });
+    onProfileChange({
+      ...profile,
+      favourites: removeFavourite(profile.favourites, key)
+    });
+  };
+
+  const removeGiftWithUndo = (gift: string, index: number) => {
+    setRemovedProfileItem({ type: "gift", value: gift, index });
+    updateGifts(giftItems.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const restoreRemovedProfileItem = () => {
+    if (!removedProfileItem) {
+      return;
+    }
+
+    if (removedProfileItem.type === "favourite") {
+      onProfileChange({
+        ...profile,
+        favourites: {
+          ...profile.favourites,
+          [removedProfileItem.key]: removedProfileItem.value
+        }
+      });
+    } else {
+      const next = [...giftItems];
+      next.splice(Math.min(removedProfileItem.index, next.length), 0, removedProfileItem.value);
+      updateGifts(next);
+    }
+
+    setRemovedProfileItem(null);
+  };
+
   return (
-    <article className="rounded-2xl border border-gold/25 bg-warm-white p-4 shadow-sm sm:p-6">
-      <p className="mb-4 text-xs uppercase tracking-[0.14em] text-text-light">{title}</p>
+    <article className="rounded-[2rem] border border-gold/25 bg-warm-white p-4 shadow-[0_22px_70px_oklch(31%_0.042_292_/_0.09)] sm:p-6">
+      <p className="mb-4 text-sm font-medium text-text-light">{title}</p>
 
       <div className="flex flex-col items-center gap-4 text-center">
-        <div className="w-32 max-w-full overflow-hidden rounded-2xl border-4 border-gold/35 aspect-3/4 sm:w-40 md:w-44">
+        <div className="w-32 max-w-full overflow-hidden rounded-[1.5rem] border border-gold/35 bg-cream shadow-sm aspect-3/4 sm:w-40 md:w-44">
           <EditableImage
             src={profile.photoUrl}
             alt={profile.name}
@@ -153,6 +211,7 @@ function ProfileCard({
           {profile.birthday || isEditing ? (
             <EditableDate
               value={profile.birthday ?? ""}
+              ariaLabel={`${profile.name || title} birthday`}
               onChange={(birthday) =>
                 onProfileChange({
                   ...profile,
@@ -181,54 +240,52 @@ function ProfileCard({
           />
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-medium text-text">Favourites</p>
-          <div className="overflow-x-auto rounded-lg border border-gold/20">
-            <table className="min-w-80 w-full table-fixed border-collapse text-sm">
-              <tbody>
-                {favouriteEntries.map(([key, value]) => (
-                  <tr key={key} className="border-b border-gold/10 last:border-b-0">
-                    <td className="w-2/5 wrap-break-word bg-cream/60 px-3 py-2 font-medium text-text">
-                      {key}
-                    </td>
-                    <td className="w-2/5 wrap-break-word px-3 py-2">
-                      <EditableText
-                        value={value}
-                        className="text-text-muted"
-                        onChange={(nextValue) =>
-                          onProfileChange({
-                            ...profile,
-                            favourites: updateFavouriteValue(profile.favourites, key, nextValue)
-                          })
-                        }
-                      />
-                    </td>
-                    {isEditing ? (
-                      <td className="w-1/5 min-w-16 px-2 py-2 align-top text-right">
-                        <button
-                          type="button"
-                          onClick={() =>
+        {isEditing ? (
+          <div>
+            <p className="mb-2 text-sm font-medium text-text">Favourites</p>
+            <div className="overflow-hidden rounded-lg border border-gold/20">
+              <table className="w-full table-fixed border-collapse text-sm">
+                <tbody>
+                  {favouriteEntries.map(([key, value]) => (
+                    <tr key={key} className="border-b border-gold/10 last:border-b-0">
+                      <td className="w-[34%] wrap-break-word bg-cream/60 px-2 py-2 font-medium text-text sm:w-2/5 sm:px-3">
+                        {key}
+                      </td>
+                      <td className="w-[46%] wrap-break-word px-2 py-2 sm:w-2/5 sm:px-3">
+                        <EditableText
+                          value={value}
+                          className="text-text-muted"
+                          onChange={(nextValue) =>
                             onProfileChange({
                               ...profile,
-                              favourites: removeFavourite(profile.favourites, key)
+                              favourites: updateFavouriteValue(profile.favourites, key, nextValue)
                             })
                           }
-                          className="w-full whitespace-nowrap rounded border border-rose/30 px-2 py-1 text-[11px] text-rose transition hover:bg-rose/10 sm:text-xs"
+                        />
+                      </td>
+                      <td className="w-[20%] px-1 py-2 align-top text-right sm:w-1/5 sm:px-2">
+                        <button
+                          type="button"
+                          aria-label={`Remove ${key}`}
+                          onClick={() => removeFavouriteWithUndo(key, value)}
+                          className="min-h-11 w-full rounded-full border border-rose/30 px-2 py-2 text-[11px] text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98] sm:px-3 sm:text-xs"
                         >
-                          Remove
+                          <span aria-hidden className="sm:hidden">
+                            x
+                          </span>
+                          <span className="hidden sm:inline">Remove</span>
                         </button>
                       </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {isEditing ? (
             <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <input
                 type="text"
+                aria-label={`${title} favourite label`}
                 placeholder="Key"
                 value={newFavouriteState.key}
                 onChange={(event) =>
@@ -237,10 +294,11 @@ function ProfileCard({
                     key: event.target.value
                   })
                 }
-                className="rounded-md border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                className="min-h-11 rounded-md border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
               />
               <input
                 type="text"
+                aria-label={`${title} favourite value`}
                 placeholder="Value"
                 value={newFavouriteState.value}
                 onChange={(event) =>
@@ -249,7 +307,7 @@ function ProfileCard({
                     value: event.target.value
                   })
                 }
-                className="rounded-md border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                className="min-h-11 rounded-md border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
               />
               <button
                 type="button"
@@ -268,13 +326,25 @@ function ProfileCard({
                   });
                   setNewFavouriteState({ key: "", value: "" });
                 }}
-                className="rounded-md border border-rose/40 px-3 py-2 text-sm text-rose transition hover:bg-rose/10"
+                className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
               >
                 Add
               </button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : favouriteEntries.length ? (
+          <div>
+            <p className="mb-2 text-sm font-medium text-text">Favourites</p>
+            <dl className="grid gap-2 sm:grid-cols-2">
+              {favouriteEntries.map(([key, value]) => (
+                <div key={key} className="border border-gold/20 bg-cream/45 px-3 py-2">
+                  <dt className="text-[11px] font-medium text-text-light">{key}</dt>
+                  <dd className="mt-1 text-sm leading-snug text-text-muted">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
 
         <div>
           <p className="mb-2 text-sm font-medium text-text">Hobbies</p>
@@ -302,15 +372,15 @@ function ProfileCard({
           />
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-medium text-text">Gifts</p>
-          {isEditing ? (
+        {isEditing ? (
+          <div>
+            <p className="mb-2 text-sm font-medium text-text">Gifts</p>
             <div className="space-y-2">
               {giftItems.length ? (
                 <ul className="space-y-2">
                   {giftItems.map((gift, index) => (
                     <li key={`${gift}-${index}`} className="flex items-start gap-2">
-                      <span className="pt-1 text-rose">•</span>
+                      <span className="pt-1 text-rose-ink">•</span>
                       <div className="min-w-0 flex-1">
                         <EditableText
                           value={gift}
@@ -330,10 +400,8 @@ function ProfileCard({
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          updateGifts(giftItems.filter((_, currentIndex) => currentIndex !== index));
-                        }}
-                        className="rounded border border-rose/30 px-2 py-1 text-[11px] text-rose transition hover:bg-rose/10 sm:text-xs"
+                        onClick={() => removeGiftWithUndo(gift, index)}
+                        className="min-h-11 rounded-full border border-rose/30 px-3 py-2 text-[11px] text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98] sm:text-xs"
                       >
                         Remove
                       </button>
@@ -347,6 +415,7 @@ function ProfileCard({
               {isAddingGift ? (
                 <input
                   autoFocus
+                  aria-label={`New gift for ${title}`}
                   value={newGift}
                   onChange={(event) => setNewGift(event.target.value)}
                   onBlur={() => {
@@ -373,30 +442,55 @@ function ProfileCard({
                       setIsAddingGift(false);
                     }
                   }}
-                  className="w-full rounded-md border border-rose/60 bg-warm-white px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
+                  className="min-h-11 w-full rounded-md border border-rose/60 bg-warm-white px-3 py-2 text-sm outline-none focus:border-rose focus:ring-2 focus:ring-rose/20"
                   placeholder="New gift"
                 />
               ) : (
                 <button
                   type="button"
                   onClick={() => setIsAddingGift(true)}
-                  className="rounded-full border border-dashed border-rose/60 px-3 py-1 text-sm text-rose transition hover:bg-rose/10"
+                  className="min-h-11 rounded-full border border-dashed border-rose/60 px-4 py-2 text-sm text-rose-ink transition hover:bg-rose-light/30 active:scale-[0.98]"
                 >
                   + Add gift
                 </button>
               )}
             </div>
-          ) : giftItems.length ? (
-            <ul className="list-disc space-y-1 pl-5 text-text-muted">
-              {giftItems.map((gift, index) => (
-                <li key={`${gift}-${index}`}>{gift}</li>
+          </div>
+        ) : giftSummary.visible.length ? (
+          <div>
+            <p className="mb-2 text-sm font-medium text-text">Gift notes</p>
+            <div className="flex flex-wrap gap-2">
+              {(showAllGifts ? giftItems : giftSummary.visible).map((gift) => (
+                <span
+                  key={gift}
+                  className="rounded-full border border-gold/25 bg-gold-light/25 px-3 py-1 text-xs text-text-muted"
+                >
+                  {gift}
+                </span>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-text-light">No gifts added yet.</p>
-          )}
-        </div>
+              {giftSummary.remainingCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllGifts((current) => !current)}
+                  className="rounded-full border border-rose/25 bg-rose-light/25 px-3 py-1 text-xs text-rose-ink transition hover:bg-rose-light/45 active:scale-[0.98]"
+                >
+                  {showAllGifts ? "Show fewer" : `+${giftSummary.remainingCount} more`}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
+      {removedProfileItem ? (
+        <UndoToast
+          message={
+            removedProfileItem.type === "favourite" ? "Favourite removed." : "Gift removed."
+          }
+          actionLabel="Undo"
+          onAction={restoreRemovedProfileItem}
+          onDismiss={() => setRemovedProfileItem(null)}
+        />
+      ) : null}
     </article>
   );
 }
@@ -437,10 +531,13 @@ export function Profiles() {
   return (
     <section
       id="profiles"
-      className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20"
+      className="px-4 py-16 sm:px-6 md:py-24"
     >
-      <h2 className="mb-8 font-serif text-3xl text-rose sm:text-4xl md:text-5xl">Profiles</h2>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-8 max-w-2xl">
+        <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">Us</h2>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <ProfileCard
           title="Her"
           profile={profiles.her}
@@ -457,6 +554,7 @@ export function Profiles() {
           newFavouriteState={newFavouriteHim}
           setNewFavouriteState={setNewFavouriteHim}
         />
+      </div>
       </div>
     </section>
   );

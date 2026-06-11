@@ -105,7 +105,7 @@ export function ScrollPositionManager() {
     };
 
     persist();
-    window.addEventListener("scroll", persist, { passive: true });
+    const intervalId = window.setInterval(persist, 750);
     window.addEventListener("beforeunload", persist);
     window.addEventListener("pagehide", persist);
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -114,7 +114,7 @@ export function ScrollPositionManager() {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      window.removeEventListener("scroll", persist);
+      window.clearInterval(intervalId);
       window.removeEventListener("beforeunload", persist);
       window.removeEventListener("pagehide", persist);
       document.removeEventListener("visibilitychange", onVisibilityChange);
