@@ -3,16 +3,13 @@
 import { EditableRichText } from "@/components/edit/EditableRichText";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
+import { MemoryLoading } from "@/components/ui/MemoryLoading";
 
 export function Letter() {
   const { content, isLoading, updateContent } = useContent();
 
   if (isLoading || !content) {
-    return (
-      <section id="letter" className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20">
-        <p className="text-text-muted">Loading...</p>
-      </section>
-    );
+    return <MemoryLoading id="letter" />;
   }
 
   const letter = content.letter;

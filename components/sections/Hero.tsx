@@ -3,19 +3,13 @@
 import { EditableImage } from "@/components/edit/EditableImage";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
+import { MemoryLoading } from "@/components/ui/MemoryLoading";
 
 export function Hero() {
   const { content, isLoading, updateContent } = useContent();
 
   if (isLoading || !content) {
-    return (
-      <section
-        id="hero"
-        className="flex min-h-[100dvh] items-center justify-center px-4 py-20 sm:px-6 md:py-24"
-      >
-        <p className="text-text-muted">Loading...</p>
-      </section>
-    );
+    return <MemoryLoading id="hero" variant="hero" />;
   }
 
   const hero = content.hero;

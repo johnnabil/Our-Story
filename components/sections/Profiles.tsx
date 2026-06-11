@@ -8,6 +8,7 @@ import { EditableTags } from "@/components/edit/EditableTags";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
+import { MemoryLoading } from "@/components/ui/MemoryLoading";
 import { UndoToast } from "@/components/ui/UndoToast";
 import type { Profile, Profiles as ProfilesType } from "@/lib/types";
 
@@ -509,14 +510,7 @@ export function Profiles() {
   });
 
   if (isLoading || !content) {
-    return (
-      <section
-        id="profiles"
-        className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20"
-      >
-        <p className="text-text-muted">Loading...</p>
-      </section>
-    );
+    return <MemoryLoading id="profiles" />;
   }
 
   const profiles = content.profiles;

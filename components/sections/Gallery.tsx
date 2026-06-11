@@ -8,6 +8,7 @@ import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
 import { ImageCropperModal } from "@/components/ui/ImageCropperModal";
+import { MemoryLoading } from "@/components/ui/MemoryLoading";
 import { Modal } from "@/components/ui/Modal";
 import {
   imagePreparationErrorMessage,
@@ -126,6 +127,9 @@ export function Gallery() {
   const [activeCategory, setActiveCategory] = useState<FilterCategory>("all");
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxImageState, setLightboxImageState] = useState<
+    "loading" | "loaded" | "error"
+  >("loading");
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -194,6 +198,7 @@ export function Gallery() {
 
   const currentLightboxItem =
     lightboxIndex !== null ? filtered[lightboxIndex] : null;
+  const lightboxPhotoUrl = currentLightboxItem?.photo.url ?? null;
   const activeSlide = filtered[selectedSlideIndex] ?? null;
   const cropQueueItem =
     cropQueueId !== null
@@ -308,6 +313,15 @@ export function Gallery() {
   }, [lightboxIndex, closeLightbox, goToPrevious, goToNext]);
 
   useEffect(() => {
+    if (lightboxPhotoUrl === null) {
+      setLightboxImageState("loading");
+      return;
+    }
+
+    setLightboxImageState("loading");
+  }, [lightboxPhotoUrl]);
+
+  useEffect(() => {
     if (lightboxIndex === null || filtered.length <= 1) {
       return;
     }
@@ -355,14 +369,7 @@ export function Gallery() {
   }, [isGalleryModalOpen]);
 
   if (isLoading || !content) {
-    return (
-      <section
-        id="gallery"
-        className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20"
-      >
-        <p className="text-text-muted">Loading...</p>
-      </section>
-    );
+    return <MemoryLoading id="gallery" />;
   }
 
   const resetAddModal = () => {
@@ -940,7 +947,46 @@ export function Gallery() {
                 </button>
               ) : null}
 
-              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-warm-white/20 bg-text/25">
+              <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-warm-white/20 bg-text/25">
+                {lightboxImageState === "loading" ? (
+                  <div
+                    className="absolute inset-0 z-10 flex items-center justify-center bg-text/45 px-6 text-warm-white backdrop-blur-sm"
+                    aria-live="polite"
+                  >
+                    <div className="relative w-full max-w-sm overflow-hidden rounded-xl border border-warm-white/20 bg-warm-white/10 p-4 shadow-[0_24px_80px_oklch(0%_0_0_/_0.32)]">
+                      <div className="loading-shimmer h-48 rounded-md border border-warm-white/10 bg-warm-white/10" />
+                      <div className="pointer-events-none absolute inset-x-4 top-4 h-48 overflow-hidden rounded-md">
+                        <span
+                          className="block h-full w-full animate-[photo-scan_1.8s_ease-in-out_infinite] bg-linear-to-b from-transparent via-warm-white/20 to-transparent"
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            Developing photo...
+                          </p>
+                          <p className="mt-1 text-xs text-warm-white/65">
+                            Bringing the full memory into focus.
+                          </p>
+                        </div>
+                        <span
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-warm-white/25 bg-warm-white/10"
+                          aria-hidden="true"
+                        >
+                          <span className="h-5 w-5 rounded-full border-2 border-warm-white/25 border-t-warm-white animate-spin" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {lightboxImageState === "error" ? (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-text/45 px-6 text-center text-sm font-medium text-warm-white">
+                    This photo could not load. Try another photo or close this preview.
+                  </div>
+                ) : null}
+
                 <Image
                   key={currentLightboxItem.photo.url}
                   src={currentLightboxItem.photo.url}
@@ -949,7 +995,11 @@ export function Gallery() {
                   height={1400}
                   sizes="100vw"
                   unoptimized
-                  className="max-h-full w-auto max-w-full object-contain"
+                  onLoad={() => setLightboxImageState("loaded")}
+                  onError={() => setLightboxImageState("error")}
+                  className={`max-h-full w-auto max-w-full object-contain transition-opacity duration-300 ${
+                    lightboxImageState === "loaded" ? "opacity-100" : "opacity-0"
+                  }`}
                 />
               </div>
 

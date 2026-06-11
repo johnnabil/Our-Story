@@ -7,6 +7,7 @@ import { EditableRichText } from "@/components/edit/EditableRichText";
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
 import { useEdit } from "@/components/providers/EditProvider";
+import { MemoryLoading } from "@/components/ui/MemoryLoading";
 import { UndoToast } from "@/components/ui/UndoToast";
 import type { StoryEntry } from "@/lib/types";
 import { createId } from "@/lib/utils";
@@ -53,11 +54,7 @@ export function Story() {
   }, [pendingNewEntryId, sortedEntries.length]);
 
   if (isLoading || !content) {
-    return (
-      <section id="story" className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16 md:py-20">
-        <p className="text-text-muted">Loading...</p>
-      </section>
-    );
+    return <MemoryLoading id="story" />;
   }
 
   const updateEntry = (id: string, patch: Partial<StoryEntry>) => {

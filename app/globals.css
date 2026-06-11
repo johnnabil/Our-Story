@@ -81,3 +81,74 @@ section[id] {
   background-size: 42px 42px;
   mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
+
+.loading-shimmer {
+  background:
+    linear-gradient(
+      110deg,
+      oklch(92% 0.035 86 / 0.55) 0%,
+      oklch(98.6% 0.009 78 / 0.82) 42%,
+      oklch(88% 0.033 348 / 0.62) 52%,
+      oklch(92% 0.035 86 / 0.55) 100%
+    );
+  background-size: 220% 100%;
+  animation: memory-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes memory-shimmer {
+  0% {
+    background-position: 140% 0;
+  }
+
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+@keyframes memory-progress {
+  0% {
+    transform: translateX(-105%);
+  }
+
+  48%,
+  58% {
+    transform: translateX(35%);
+  }
+
+  100% {
+    transform: translateX(210%);
+  }
+}
+
+@keyframes memory-draw {
+  from {
+    transform: scaleX(0.4);
+    opacity: 0.55;
+  }
+
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes memory-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+@keyframes photo-scan {
+  0% {
+    transform: translateY(-115%);
+  }
+
+  100% {
+    transform: translateY(115%);
+  }
+}
