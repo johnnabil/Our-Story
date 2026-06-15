@@ -177,7 +177,7 @@ export function EditBar() {
   return (
     <>
       <div
-        className={`fixed z-50 transition-all duration-300 ${
+        className={`edit-floating-bar fixed z-50 transition-all duration-300 ${
           mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
         }`}
         style={{

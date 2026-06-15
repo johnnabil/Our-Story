@@ -14,6 +14,8 @@ interface ModalProps {
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+let openModalCount = 0;
+
 export function Modal({
   isOpen,
   title,
@@ -43,10 +45,17 @@ export function Modal({
       return;
     }
 
+    openModalCount += 1;
+    document.body.dataset.modalOpen = "true";
+
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        delete document.body.dataset.modalOpen;
+      }
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
@@ -107,7 +116,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-text/50 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-text/50 p-0 sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
