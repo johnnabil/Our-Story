@@ -291,7 +291,8 @@ export function ImageCropperModal({
     const maxHeight = Math.min(viewport.height, viewport.width / activeRatio);
 
     const minScale = Math.max(MIN_CROP_SIZE / maxWidth, MIN_CROP_SIZE / maxHeight);
-    const normalizedScale = clamp(lockedSizePercent / 100, minScale, 1);
+    const normalizedScale =
+      preset === "original" ? 1 : clamp(lockedSizePercent / 100, minScale, 1);
 
     return {
       width: maxWidth * normalizedScale,
@@ -351,6 +352,21 @@ export function ImageCropperModal({
     const normalizedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
     setZoom(normalizedZoom);
     setOffset((previous) => clampOffset(previous, normalizedZoom));
+  };
+
+  const handlePresetChange = (nextPreset: CropPreset) => {
+    setPreset(nextPreset);
+
+    if (nextPreset === "original") {
+      setZoom(1);
+      setOffset({ x: 0, y: 0 });
+      setLockedSizePercent(100);
+      return;
+    }
+
+    if (preset === "original") {
+      setLockedSizePercent(88);
+    }
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -500,7 +516,7 @@ export function ImageCropperModal({
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setPreset(option.id)}
+                onClick={() => handlePresetChange(option.id)}
                 className={`min-h-10 rounded-full px-2 py-2 text-[11px] font-medium transition ${
                   preset === option.id
                     ? "bg-warm-white text-rose-ink shadow-sm"
@@ -597,6 +613,10 @@ export function ImageCropperModal({
                 />
               </label>
             </div>
+          ) : preset === "original" ? (
+            <p className="rounded-md border border-gold/25 bg-cream px-3 py-2 text-sm text-text-muted">
+              Original uses the full photo frame.
+            </p>
           ) : (
             <label className="block text-sm font-medium text-text-muted">
               Crop size
