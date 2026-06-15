@@ -130,7 +130,34 @@ export function ImageCropperModal({
   const [freeWidthPercent, setFreeWidthPercent] = useState(82);
   const [freeHeightPercent, setFreeHeightPercent] = useState(82);
   const [lockedSizePercent, setLockedSizePercent] = useState(88);
+  const [viewportLimit, setViewportLimit] = useState({
+    width: MAX_VIEWPORT_WIDTH,
+    height: MAX_VIEWPORT_HEIGHT
+  });
   const dragRef = useRef<DragState | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const updateViewportLimit = () => {
+      const safeWidth = Math.min(MAX_VIEWPORT_WIDTH, Math.max(MIN_VIEWPORT_WIDTH, window.innerWidth - 56));
+      const safeHeight = Math.min(
+        MAX_VIEWPORT_HEIGHT,
+        Math.max(MIN_VIEWPORT_HEIGHT, Math.floor(window.innerHeight * 0.38))
+      );
+
+      setViewportLimit({ width: safeWidth, height: safeHeight });
+    };
+
+    updateViewportLimit();
+    window.addEventListener("resize", updateViewportLimit);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportLimit);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !file) {
@@ -224,25 +251,25 @@ export function ImageCropperModal({
 
   const viewport = useMemo(() => {
     if (viewportAspect >= 1) {
-      const width = MAX_VIEWPORT_WIDTH;
+      const width = viewportLimit.width;
       const height = clamp(
         Math.round(width / viewportAspect),
         MIN_VIEWPORT_HEIGHT,
-        MAX_VIEWPORT_HEIGHT
+        viewportLimit.height
       );
 
       return { width, height };
     }
 
-    const height = MAX_VIEWPORT_HEIGHT;
+    const height = viewportLimit.height;
     const width = clamp(
       Math.round(height * viewportAspect),
       MIN_VIEWPORT_WIDTH,
-      MAX_VIEWPORT_WIDTH
+      viewportLimit.width
     );
 
     return { width, height };
-  }, [viewportAspect]);
+  }, [viewportAspect, viewportLimit.height, viewportLimit.width]);
 
   const cropBox = useMemo(() => {
     if (preset === "free" || !activeRatio) {
@@ -457,134 +484,145 @@ export function ImageCropperModal({
   const displayHeight = baseImageSize ? baseImageSize.height * zoom : 0;
 
   return (
-    <Modal isOpen={isOpen} title={title} onClose={onCancel}>
-      <div className="space-y-4">
-        <p className="text-sm text-text-muted">Drag to reposition, zoom to adjust framing, then crop.</p>
+    <Modal
+      isOpen={isOpen}
+      title={title}
+      onClose={onCancel}
+      maxWidth="lg"
+      bodyClassName="px-4 pb-0 sm:px-5"
+    >
+      <div className="grid min-h-0 gap-4 sm:grid-cols-[minmax(0,1fr)_15rem]">
+        <div className="min-w-0 space-y-3">
+          <p className="text-sm text-text-muted">Drag to reposition. Use zoom and crop size to refine the frame.</p>
 
-        <div className="flex flex-wrap gap-2">
-          {PRESET_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setPreset(option.id)}
-              className={`min-h-11 rounded-full border px-4 py-2 text-xs transition ${
-                preset === option.id
-                  ? "border-rose/45 bg-rose/10 text-rose-ink"
-                  : "border-gold/30 text-text-muted hover:border-rose/35 hover:text-rose-ink"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className={`relative mx-auto overflow-hidden rounded-xl border border-gold/30 bg-cream/40 ${
-            isDragging ? "cursor-grabbing" : "cursor-grab"
-          } touch-none select-none`}
-          style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        >
-          {canCrop ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl!}
-              alt="Crop preview"
-              draggable={false}
-              className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
-              style={{
-                width: `${displayWidth}px`,
-                height: `${displayHeight}px`,
-                transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`
-              }}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-text-light">
-              {isPreparing ? "Preparing image..." : error ?? "No image selected"}
-            </div>
-          )}
+          <div className="grid grid-cols-5 gap-1 rounded-full border border-gold/25 bg-cream p-1">
+            {PRESET_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setPreset(option.id)}
+                className={`min-h-10 rounded-full px-2 py-2 text-[11px] font-medium transition ${
+                  preset === option.id
+                    ? "bg-warm-white text-rose-ink shadow-sm"
+                    : "text-text-muted hover:bg-warm-white/70 hover:text-rose-ink"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
 
           <div
-            className="pointer-events-none absolute rounded-md border-2 border-warm-white/95 shadow-[0_0_0_9999px_rgba(79,69,110,0.38)]"
-            style={{
-              left: `${cropBoxOrigin.left}px`,
-              top: `${cropBoxOrigin.top}px`,
-              width: `${cropBox.width}px`,
-              height: `${cropBox.height}px`
-            }}
-          />
+            className={`relative mx-auto overflow-hidden rounded-xl border border-gold/30 bg-cream/40 ${
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            } touch-none select-none`}
+            style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            {canCrop ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl!}
+                alt="Crop preview"
+                draggable={false}
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+                style={{
+                  width: `${displayWidth}px`,
+                  height: `${displayHeight}px`,
+                  transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`
+                }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-text-light">
+                {isPreparing ? "Preparing image..." : error ?? "No image selected"}
+              </div>
+            )}
+
+            <div
+              className="pointer-events-none absolute rounded-md border-2 border-warm-white/95 shadow-[0_0_0_9999px_rgba(79,69,110,0.38)]"
+              style={{
+                left: `${cropBoxOrigin.left}px`,
+                top: `${cropBoxOrigin.top}px`,
+                width: `${cropBox.width}px`,
+                height: `${cropBox.height}px`
+              }}
+            />
+          </div>
         </div>
 
-        <label className="block text-sm text-text-muted">
-          Zoom
-          <input
-            type="range"
-            min={MIN_ZOOM}
-            max={MAX_ZOOM}
-            step={0.01}
-            value={zoom}
-            onChange={(event) => handleZoomChange(Number(event.target.value))}
-            disabled={!canCrop || isApplying}
-            className="mt-2 w-full accent-rose"
-          />
-        </label>
-
-        {preset === "free" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm text-text-muted">
-              Crop width
-              <input
-                type="range"
-                min={FREE_CROP_MIN_PERCENT}
-                max={100}
-                step={1}
-                value={freeWidthPercent}
-                onChange={(event) => setFreeWidthPercent(Number(event.target.value))}
-                disabled={!canCrop || isApplying}
-                className="mt-2 w-full accent-rose"
-              />
-            </label>
-            <label className="block text-sm text-text-muted">
-              Crop height
-              <input
-                type="range"
-                min={FREE_CROP_MIN_PERCENT}
-                max={100}
-                step={1}
-                value={freeHeightPercent}
-                onChange={(event) => setFreeHeightPercent(Number(event.target.value))}
-                disabled={!canCrop || isApplying}
-                className="mt-2 w-full accent-rose"
-              />
-            </label>
-          </div>
-        ) : (
-          <label className="block text-sm text-text-muted">
-            Crop size
+        <div className="min-w-0 space-y-4 sm:pt-8">
+          <label className="block text-sm font-medium text-text-muted">
+            Zoom
             <input
               type="range"
-              min={LOCKED_CROP_MIN_PERCENT}
-              max={100}
-              step={1}
-              value={lockedSizePercent}
-              onChange={(event) => setLockedSizePercent(Number(event.target.value))}
+              min={MIN_ZOOM}
+              max={MAX_ZOOM}
+              step={0.01}
+              value={zoom}
+              onChange={(event) => handleZoomChange(Number(event.target.value))}
               disabled={!canCrop || isApplying}
               className="mt-2 w-full accent-rose"
             />
           </label>
-        )}
 
-        {error ? <p className="text-sm text-rose-deep">{error}</p> : null}
+          {preset === "free" ? (
+            <div className="grid gap-3">
+              <label className="block text-sm font-medium text-text-muted">
+                Crop width
+                <input
+                  type="range"
+                  min={FREE_CROP_MIN_PERCENT}
+                  max={100}
+                  step={1}
+                  value={freeWidthPercent}
+                  onChange={(event) => setFreeWidthPercent(Number(event.target.value))}
+                  disabled={!canCrop || isApplying}
+                  className="mt-2 w-full accent-rose"
+                />
+              </label>
+              <label className="block text-sm font-medium text-text-muted">
+                Crop height
+                <input
+                  type="range"
+                  min={FREE_CROP_MIN_PERCENT}
+                  max={100}
+                  step={1}
+                  value={freeHeightPercent}
+                  onChange={(event) => setFreeHeightPercent(Number(event.target.value))}
+                  disabled={!canCrop || isApplying}
+                  className="mt-2 w-full accent-rose"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="block text-sm font-medium text-text-muted">
+              Crop size
+              <input
+                type="range"
+                min={LOCKED_CROP_MIN_PERCENT}
+                max={100}
+                step={1}
+                value={lockedSizePercent}
+                onChange={(event) => setLockedSizePercent(Number(event.target.value))}
+                disabled={!canCrop || isApplying}
+                className="mt-2 w-full accent-rose"
+              />
+            </label>
+          )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+          {error ? <p className="text-sm text-rose-deep">{error}</p> : null}
+        </div>
+      </div>
+
+      <div className="sticky bottom-0 -mx-4 mt-4 flex gap-2 border-t border-gold/20 bg-warm-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-5 sm:px-5">
           <button
             type="button"
             onClick={onCancel}
             disabled={isApplying}
-            className="min-h-11 rounded-full border border-gold/40 px-4 py-2 text-sm text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-11 flex-1 rounded-full border border-gold/40 px-4 py-2 text-sm text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none"
           >
             Cancel
           </button>
@@ -594,12 +632,11 @@ export function ImageCropperModal({
               void handleApply();
             }}
             disabled={!canCrop || isApplying}
-            className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-11 flex-1 rounded-full border border-rose/40 bg-rose/10 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/15 disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none"
           >
             {isApplying ? "Applying..." : "Use crop"}
           </button>
         </div>
-      </div>
     </Modal>
   );
 }

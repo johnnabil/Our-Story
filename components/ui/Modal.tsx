@@ -7,13 +7,23 @@ interface ModalProps {
   title?: string;
   onClose: () => void;
   children: React.ReactNode;
+  maxWidth?: "md" | "lg";
+  bodyClassName?: string;
 }
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ isOpen, title, onClose, children }: ModalProps) {
+export function Modal({
+  isOpen,
+  title,
+  onClose,
+  children,
+  maxWidth = "md",
+  bodyClassName = ""
+}: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const widthClass = maxWidth === "lg" ? "sm:max-w-2xl" : "sm:max-w-md";
 
   useEffect(() => {
     if (!isOpen || !dialogRef.current) {
@@ -97,7 +107,7 @@ export function Modal({ isOpen, title, onClose, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-text/50 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-text/50 p-0 sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -111,9 +121,9 @@ export function Modal({ isOpen, title, onClose, children }: ModalProps) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="w-full max-w-md rounded-xl border border-gold/30 bg-warm-white p-5 shadow-lg outline-none"
+        className={`flex max-h-[calc(100dvh-0.75rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-gold/30 bg-warm-white shadow-lg outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl ${widthClass}`}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-5 pb-4">
           {title ? <h2 className="font-serif text-2xl text-text">{title}</h2> : <span />}
           <button
             type="button"
@@ -124,7 +134,9 @@ export function Modal({ isOpen, title, onClose, children }: ModalProps) {
             Close
           </button>
         </div>
-        {children}
+        <div className={`min-h-0 overflow-y-auto px-5 pb-5 ${bodyClassName}`}>
+          {children}
+        </div>
       </div>
     </div>
   );

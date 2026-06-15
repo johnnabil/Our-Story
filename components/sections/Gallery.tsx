@@ -1045,6 +1045,7 @@ export function Gallery() {
         onClose={() => {
           resetAddModal();
         }}
+        bodyClassName="px-4 pb-0 sm:px-5"
       >
         <form
           className="space-y-4"
@@ -1080,13 +1081,13 @@ export function Gallery() {
           </label>
 
           {queuedPhotos.length ? (
-            <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+            <div className="space-y-3">
               {queuedPhotos.map((queuedPhoto, index) => (
                 <div
                   key={queuedPhoto.id}
-                  className="rounded-md border border-gold/25 bg-cream p-3"
+                  className="rounded-lg border border-gold/25 bg-cream p-3"
                 >
-                  <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-text">
                         {queuedPhoto.originalFile.name}
@@ -1100,7 +1101,7 @@ export function Gallery() {
                       type="button"
                       onClick={() => removeQueuedPhoto(queuedPhoto.id)}
                       disabled={isUploading}
-                      className="min-h-11 shrink-0 rounded border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="min-h-11 rounded-md border border-rose/30 px-3 py-2 text-sm text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0"
                     >
                       Remove
                     </button>
@@ -1144,7 +1145,7 @@ export function Gallery() {
                           void openCropperForQueuedPhoto(queuedPhoto.id);
                         }}
                         disabled={isUploading || isPreparingImage}
-                        className="min-h-11 w-full rounded border border-rose/30 px-3 py-2 text-xs text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="min-h-11 w-full rounded-md border border-rose/30 bg-warm-white px-3 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isPreparingImage && cropQueueId === queuedPhoto.id
                           ? "Preparing..."
@@ -1188,11 +1189,11 @@ export function Gallery() {
             </div>
           ) : null}
 
-          <div className="flex justify-end">
+          <div className="sticky bottom-0 -mx-4 flex justify-end border-t border-gold/20 bg-warm-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-5 sm:px-5">
             <button
               type="submit"
               disabled={isUploading || isPreparingImage || !queuedPhotos.length}
-              className="rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70"
+              className="min-h-11 w-full rounded-full border border-rose/40 bg-rose/10 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/15 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {isUploading
                 ? `Uploading ${uploadProgress.uploaded} of ${uploadProgress.total}...`
