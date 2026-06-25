@@ -31,3 +31,5 @@ pnpm-debug.log*
 
 # local JSON atomic write temp files
 data/defaults/*.json.*.tmp
+
+.impeccable

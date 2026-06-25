@@ -25,6 +25,57 @@ function parseSavedScroll(rawValue: string | null) {
 export function ScrollPositionManager() {
   const pathname = usePathname();
 
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const revealIfVisible = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.88 && rect.bottom > 0) {
+        element.classList.add("is-visible");
+        element.dataset.revealed = "true";
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            if (entry.target instanceof HTMLElement) {
+              entry.target.dataset.revealed = "true";
+            }
+          }
+        });
+      },
+      {
+        rootMargin: "0px 0px -12% 0px",
+        threshold: 0.12
+      }
+    );
+
+    const observeRevealElements = () => {
+      document.querySelectorAll<HTMLElement>(".scroll-reveal, .story-ink-line").forEach((element) => {
+        revealIfVisible(element);
+        observer.observe(element);
+      });
+    };
+
+    observeRevealElements();
+
+    const mutationObserver = new MutationObserver(observeRevealElements);
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const key = getStorageKey(pathname);
     const savedTop = parseSavedScroll(window.sessionStorage.getItem(key));

@@ -23,7 +23,7 @@ export function Dreams() {
   const { isEditing } = useEdit();
 
   const [isAddingDream, setIsAddingDream] = useState(false);
-  const [newIcon, setNewIcon] = useState("*");
+  const [newIcon, setNewIcon] = useState("note");
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newCategory, setNewCategory] = useState<DreamCategory>("travel");
@@ -73,7 +73,7 @@ export function Dreams() {
 
   const resetNewDream = () => {
     setIsAddingDream(false);
-    setNewIcon("*");
+    setNewIcon("note");
     setNewTitle("");
     setNewDesc("");
     setNewCategory("travel");
@@ -90,7 +90,7 @@ export function Dreams() {
       ...dreams,
       {
         id: createId(),
-        icon: newIcon.trim() || "*",
+        icon: newIcon.trim() || "note",
         title: newTitle.trim(),
         desc: newDesc.trim(),
         category: newCategory,
@@ -107,8 +107,11 @@ export function Dreams() {
       className="px-4 py-16 sm:px-6 md:py-24"
     >
       <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+      <div className="scroll-reveal mb-8 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
         <div>
+        <p className="mb-4 w-fit border border-cairo-blue-soft bg-cairo-blue-soft/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-cairo-blue">
+          future notes
+        </p>
         <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">Dreams</h2>
         </div>
         {isEditing ? (
@@ -123,7 +126,7 @@ export function Dreams() {
       </div>
 
       {isEditing && isAddingDream ? (
-        <div className="mb-5 rounded-2xl border border-gold/25 bg-warm-white/85 p-4">
+        <div className="mb-5 border border-gold/25 bg-warm-white/85 p-4">
           <div className="grid gap-3 sm:grid-cols-[80px_1fr]">
             <label className="block text-sm text-text-muted">
               Icon
@@ -195,16 +198,24 @@ export function Dreams() {
         </div>
       ) : null}
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {sortedDreams.map((dream) => (
+        <div className="grid gap-4 md:grid-cols-2">
+        {sortedDreams.map((dream, index) => (
           <article
             key={dream.id}
-            className={`relative grid gap-4 rounded-2xl border p-4 transition sm:grid-cols-[auto_1fr] sm:p-5 ${
+            className={`scroll-reveal note-shadow sticky-note relative grid gap-4 border p-4 transition sm:grid-cols-[auto_1fr] sm:p-5 ${
               dream.done
-                ? "border-gold/20 bg-gold-light/30 text-text-muted"
-                : "border-gold/25 bg-warm-white/82 shadow-sm"
-            }`}
+                ? "border-gold/20 text-text-muted opacity-80"
+                : "border-gold/25 shadow-sm"
+            } ${isEditing ? "" : index % 2 === 0 ? "md:-rotate-1" : "md:rotate-1 md:translate-y-3"}`}
           >
+            {!isEditing ? (
+              <span
+                aria-hidden="true"
+                className={`scrapbook-tape absolute -top-3 h-6 w-24 ${
+                  index % 2 === 0 ? "left-6 rotate-[-2deg]" : "right-6 rotate-2"
+                }`}
+              />
+            ) : null}
             <div className="flex items-start gap-3 sm:contents">
               <button
                 type="button"
@@ -234,7 +245,7 @@ export function Dreams() {
               <div className="flex items-start gap-3 pr-0 sm:pr-24">
                 <EditableText
                   value={dream.icon}
-                  className="text-3xl leading-none"
+                  className="text-sm font-bold uppercase tracking-[0.14em] text-cairo-blue"
                   onChange={(icon) => updateDream(dream.id, { icon })}
                 />
                 <EditableText

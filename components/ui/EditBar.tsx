@@ -185,7 +185,7 @@ export function EditBar() {
           right: "max(1rem, env(safe-area-inset-right))"
         }}
       >
-        <div className="rounded-full border border-gold/40 bg-warm-white/95 p-1 shadow-lg backdrop-blur-md">
+        <div className="note-shadow border border-gold/40 bg-warm-white/95 p-1 backdrop-blur-md">
           {isEditing ? (
             <div className="flex items-center gap-1">
               {saveStatusText ? (
@@ -203,7 +203,7 @@ export function EditBar() {
                   void handleSaveAndExit();
                 }}
                 disabled={isSaving}
-                className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
+                className="min-h-11 border border-rose/40 px-4 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               >
                 {isSaving ? "Saving..." : "Save & Exit"}
               </button>
@@ -211,7 +211,7 @@ export function EditBar() {
                 type="button"
                 onClick={toggleEditWithScrollPreservation}
                 disabled={isSaving}
-                className="min-h-11 rounded-full border border-gold/40 px-4 py-2 text-xs font-medium text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
+                className="min-h-11 border border-gold/40 px-4 py-2 text-xs font-medium text-text transition hover:bg-cream disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               >
                 Exit
               </button>
@@ -228,7 +228,7 @@ export function EditBar() {
 
                 toggleEditWithScrollPreservation();
               }}
-              className="min-h-11 rounded-full border border-rose/40 px-5 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 sm:text-sm"
+              className="min-h-11 border border-rose/40 px-5 py-2 text-xs font-medium text-rose-ink transition hover:bg-rose/10 sm:text-sm"
             >
               {canEdit ? "Edit Site" : "Edit"}
             </button>
@@ -262,7 +262,7 @@ export function EditBar() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="min-h-11 rounded-full border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10"
+              className="min-h-11 border border-rose/40 px-4 py-2 text-sm font-medium text-rose-ink transition hover:bg-rose/10"
             >
               Unlock
             </button>

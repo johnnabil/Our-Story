@@ -21,6 +21,7 @@
 
   --font-serif: var(--font-cormorant);
   --font-sans: var(--font-dm-sans);
+  --font-hand: var(--font-caveat);
 }
 
 html,
@@ -94,6 +95,222 @@ body[data-modal-open="true"] .edit-floating-bar {
   mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
 
+.paper-shadow {
+  box-shadow: 0 28px 80px oklch(31% 0.042 292 / 0.13);
+}
+
+.photo-shadow {
+  box-shadow: 0 34px 90px oklch(31% 0.042 292 / 0.2);
+}
+
+.note-shadow {
+  box-shadow: 0 16px 45px oklch(31% 0.042 292 / 0.08);
+}
+
+.tape-shadow {
+  box-shadow: 0 5px 18px oklch(31% 0.042 292 / 0.1);
+}
+
+.table-shadow {
+  box-shadow: 0 18px 45px oklch(31% 0.042 292 / 0.07);
+}
+
+.scrapbook-tape {
+  background:
+    linear-gradient(90deg, oklch(98.6% 0.009 78 / 0.42), transparent 18%, transparent 82%, oklch(98.6% 0.009 78 / 0.36)),
+    repeating-linear-gradient(
+      135deg,
+      oklch(92% 0.035 86 / 0.68) 0 8px,
+      oklch(88% 0.033 348 / 0.28) 8px 13px
+    );
+  box-shadow: 0 7px 18px oklch(31% 0.042 292 / 0.12);
+  mix-blend-mode: multiply;
+}
+
+.scrapbook-polaroid {
+  background: var(--color-warm-white);
+  box-shadow: 0 20px 55px oklch(31% 0.042 292 / 0.16);
+}
+
+.calendar-slip {
+  background:
+    linear-gradient(180deg, oklch(98.6% 0.009 78 / 0.8), transparent 5.4rem),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 2.55rem,
+      oklch(67% 0.07 86 / 0.14) 2.6rem,
+      transparent 2.66rem
+    ),
+    var(--color-warm-white);
+}
+
+.sticky-note {
+  background:
+    linear-gradient(180deg, oklch(98.6% 0.009 78 / 0.45), transparent 38%),
+    oklch(92% 0.035 86 / 0.72);
+}
+
+.notebook-paper {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 2.35rem,
+      oklch(39% 0.07 236 / 0.12) 2.4rem,
+      transparent 2.45rem
+    ),
+    var(--color-warm-white);
+}
+
+.notebook-cover {
+  background:
+    linear-gradient(90deg, oklch(25% 0.047 280 / 0.07), transparent 8%, transparent 92%, oklch(25% 0.047 280 / 0.08)),
+    var(--color-warm-white);
+}
+
+.letter-hand {
+  font-family: var(--font-caveat), "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+  font-feature-settings: "liga" 1, "calt" 1;
+}
+
+.letter-paper {
+  background:
+    linear-gradient(90deg, oklch(67% 0.07 86 / 0.12) 1px, transparent 1px),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 2.85rem,
+      oklch(67% 0.07 86 / 0.16) 2.9rem,
+      transparent 2.96rem
+    ),
+    radial-gradient(circle at 18% 22%, oklch(98.6% 0.009 78 / 0.58), transparent 16rem),
+    radial-gradient(circle at 82% 80%, oklch(88% 0.033 348 / 0.16), transparent 18rem),
+    var(--color-parchment);
+  background-size:
+    5.8rem 100%,
+    100% 2.95rem,
+    auto,
+    auto,
+    auto;
+}
+
+.letter-paper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(115deg, transparent 0 46%, oklch(31% 0.042 292 / 0.055) 47%, transparent 48%),
+    linear-gradient(72deg, transparent 0 64%, oklch(67% 0.07 86 / 0.08) 65%, transparent 66%);
+  background-size: 34px 18px, 42px 24px;
+  mix-blend-mode: multiply;
+}
+
+.letter-paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid oklch(67% 0.07 86 / 0.24);
+  clip-path: polygon(
+    0.5% 0,
+    99.3% 0.4%,
+    99.8% 18%,
+    99.4% 39%,
+    99.8% 62%,
+    99.2% 100%,
+    0.7% 99.6%,
+    0.2% 83%,
+    0.6% 58%,
+    0.1% 31%
+  );
+}
+
+.motion-drop-in {
+  transform: rotate(var(--memory-rotate, 0deg));
+}
+
+.memory-reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.scroll-reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.story-ink-line {
+  transform-origin: top;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion-drop-in {
+    animation: memory-drop-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--memory-delay, 0ms);
+  }
+
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 650ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .scroll-reveal.is-visible,
+  .scroll-reveal[data-revealed="true"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .story-ink-line {
+    transform: scaleY(0);
+    transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .story-ink-line.is-visible,
+  .story-ink-line[data-revealed="true"] {
+    transform: scaleY(1);
+  }
+
+  @media (min-width: 640px) {
+    .memory-reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      animation: memory-reveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-delay: var(--memory-delay, 0ms);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .memory-reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .scroll-reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .story-ink-line {
+    transform: none;
+  }
+}
+
 .loading-shimmer {
   background:
     linear-gradient(
@@ -162,5 +379,29 @@ body[data-modal-open="true"] .edit-floating-bar {
 
   100% {
     transform: translateY(115%);
+  }
+}
+
+@keyframes memory-drop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-28px) rotate(calc(var(--memory-rotate, 0deg) - 2.5deg));
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--memory-rotate, 0deg));
+  }
+}
+
+@keyframes memory-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

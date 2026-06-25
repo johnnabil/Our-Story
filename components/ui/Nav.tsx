@@ -20,6 +20,22 @@ const NAV_ITEMS: NavItem[] = [
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+function getActiveSectionId() {
+  const isAtPageEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+  if (isAtPageEnd) {
+    return NAV_ITEMS[NAV_ITEMS.length - 1].id;
+  }
+
+  const focusTop = window.scrollY + 140;
+
+  return (
+    NAV_ITEMS.findLast((item) => {
+      const element = document.getElementById(item.id);
+      return element ? element.offsetTop <= focusTop : false;
+    })?.id ?? NAV_ITEMS[0].id
+  );
+}
+
 export function Nav() {
   const [activeSection, setActiveSection] = useState("hero");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -34,40 +50,29 @@ export function Nav() {
   }, []);
 
   useEffect(() => {
-    const sections = NAV_ITEMS
-      .map((item) => document.getElementById(item.id))
-      .filter((element): element is HTMLElement => element !== null);
+    let frameId: number | null = null;
 
-    if (!sections.length) {
-      return;
-    }
-
-    const visibleSections = new Map<string, number>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            visibleSections.set(entry.target.id, entry.intersectionRatio);
-          } else {
-            visibleSections.delete(entry.target.id);
-          }
-        });
-
-        const nextActive = [...visibleSections.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-        if (nextActive) {
-          setActiveSection(nextActive);
-        }
-      },
-      {
-        rootMargin: "-28% 0px -58% 0px",
-        threshold: [0.01, 0.18, 0.4, 0.65]
+    const updateActiveSection = () => {
+      if (frameId !== null) {
+        return;
       }
-    );
 
-    sections.forEach((section) => observer.observe(section));
+      frameId = window.requestAnimationFrame(() => {
+        setActiveSection(getActiveSectionId());
+        frameId = null;
+      });
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
 
     return () => {
-      observer.disconnect();
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
     };
   }, []);
 
@@ -163,12 +168,13 @@ export function Nav() {
       return;
     }
 
+    setActiveSection(id);
     element.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-gold/25 bg-warm-white/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-gold/25 bg-warm-white/92 shadow-[0_10px_32px_oklch(31%_0.042_292_/_0.06)] backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:hidden">
           <span className="font-serif text-2xl text-rose-ink">Our Story</span>
           <button
@@ -204,10 +210,10 @@ export function Nav() {
                 event.preventDefault();
                 scrollToSection(item.id);
               }}
-              className={`rounded-full border px-3 py-1.5 text-sm transition active:scale-[0.98] ${
+              className={`border px-3 py-1.5 text-sm transition active:scale-[0.98] ${
                 activeSection === item.id
-                  ? "border-rose/45 bg-rose-light/45 text-rose-ink"
-                  : "border-transparent text-text-muted hover:border-rose/30 hover:text-rose-ink"
+                  ? "note-shadow rotate-[-1deg] border-rose/35 bg-rose-light/35 text-rose-ink"
+                  : "border-transparent text-text-muted hover:border-gold/25 hover:bg-parchment/60 hover:text-rose-ink"
               }`}
             >
               {item.label}
@@ -257,9 +263,9 @@ export function Nav() {
                     scrollToSection(item.id);
                     closeMobileMenu();
                   }}
-                  className={`min-h-11 rounded-2xl border px-4 py-3 text-lg transition active:scale-[0.98] ${
+                  className={`min-h-11 border px-4 py-3 text-lg transition active:scale-[0.98] ${
                     activeSection === item.id
-                      ? "border-rose/45 bg-rose-light/45 text-rose-ink"
+                      ? "note-shadow border-rose/45 bg-rose-light/45 text-rose-ink"
                       : "border-gold/30 bg-warm-white text-text-muted"
                   }`}
                 >

@@ -91,8 +91,15 @@ export function Story() {
   return (
     <section id="story" className="px-4 py-16 sm:px-6 md:py-24">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-12 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end md:mb-16">
-          <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">Our Story</h2>
+        <div className="scroll-reveal mb-12 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end md:mb-16">
+          <div>
+            <p className="mb-4 w-fit border border-gold/25 bg-gold-light/45 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-rose-ink">
+              ink line
+            </p>
+            <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">
+              Our Story
+            </h2>
+          </div>
           {isEditing ? (
             <button
               type="button"
@@ -117,7 +124,7 @@ export function Story() {
         </div>
 
         <div className="relative">
-          <div className="absolute bottom-3 left-[1.05rem] top-3 w-px bg-gradient-to-b from-transparent via-rose/45 to-transparent md:left-1/2" />
+          <div className="story-ink-line absolute bottom-3 left-[1.05rem] top-3 w-px bg-gradient-to-b from-transparent via-rose/55 to-transparent shadow-[0_0_0_1px_oklch(67%_0.07_86_/_0.18)] md:left-1/2" />
           <ol className="relative space-y-10 md:space-y-0">
             {sortedEntries.map((entry, index) => {
               const isRightAligned = index % 2 === 1;
@@ -126,7 +133,7 @@ export function Story() {
                 <li
                   key={entry.id}
                   data-story-entry-id={entry.id}
-                  className="relative grid gap-4 pl-12 md:min-h-44 md:grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] md:gap-6 md:pl-0"
+                  className="scroll-reveal relative grid gap-4 pl-12 md:min-h-44 md:grid-cols-[minmax(0,1fr)_5rem_minmax(0,1fr)] md:gap-6 md:pl-0"
                 >
                   <div className="absolute left-0 top-0 z-10 md:static md:col-start-2 md:row-start-1 md:flex md:justify-center">
                     <div className="grid size-9 place-items-center rounded-full border border-rose/35 bg-warm-white text-[11px] font-semibold text-rose-ink shadow-[0_8px_24px_oklch(39%_0.105_348_/_0.10)] md:size-11 md:text-xs">
@@ -135,13 +142,21 @@ export function Story() {
                   </div>
 
                   <article
-                    className={`relative border-t border-rose/20 pt-5 md:row-start-1 md:pb-16 ${
+                    className={`note-shadow relative border border-gold/20 bg-warm-white/75 px-4 py-5 md:row-start-1 md:mb-16 ${
                       isRightAligned ? "md:col-start-3" : "md:col-start-1 md:text-right"
-                    } ${index === sortedEntries.length - 1 ? "md:pb-0" : ""}`}
+                    } ${index === sortedEntries.length - 1 ? "md:mb-0" : ""}`}
                   >
+                    {!isEditing ? (
+                      <span
+                        aria-hidden="true"
+                        className={`scrapbook-tape absolute -top-3 h-6 w-24 ${
+                          isRightAligned ? "left-5 rotate-[-2deg]" : "right-5 rotate-2"
+                        }`}
+                      />
+                    ) : null}
                     <span
                       aria-hidden="true"
-                      className={`absolute -top-px h-px w-16 bg-rose ${
+                      className={`absolute -top-px h-px w-16 bg-rose/70 ${
                         isRightAligned ? "left-0" : "left-0 md:left-auto md:right-0"
                       }`}
                     />

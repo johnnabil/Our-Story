@@ -161,11 +161,15 @@ function ProfileCard({
   };
 
   return (
-    <article className="rounded-[2rem] border border-gold/25 bg-warm-white p-4 shadow-[0_22px_70px_oklch(31%_0.042_292_/_0.09)] sm:p-6">
+    <article className="scroll-reveal notebook-paper relative p-4 sm:p-6">
+      <span
+        aria-hidden="true"
+        className="scrapbook-tape absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 rotate-[-1deg]"
+      />
       <p className="mb-4 text-sm font-medium text-text-light">{title}</p>
 
       <div className="flex flex-col items-center gap-4 text-center">
-        <div className="w-32 max-w-full overflow-hidden rounded-[1.5rem] border border-gold/35 bg-cream shadow-sm aspect-3/4 sm:w-40 md:w-44">
+        <div className="scrapbook-polaroid w-32 max-w-full overflow-hidden border border-gold/35 p-2 pb-5 aspect-3/4 sm:w-40 md:w-44">
           <EditableImage
             src={profile.photoUrl}
             alt={profile.name}
@@ -528,10 +532,21 @@ export function Profiles() {
       className="px-4 py-16 sm:px-6 md:py-24"
     >
       <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-8 max-w-2xl">
+      <div className="scroll-reveal mb-8 max-w-2xl">
+        <p className="mb-4 w-fit border border-gold/25 bg-gold-light/45 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-rose-ink">
+          open notebook
+        </p>
         <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">Us</h2>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="notebook-cover paper-shadow relative overflow-hidden border border-gold/25 lg:grid lg:grid-cols-2">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-1/2 z-10 hidden w-10 -translate-x-1/2 bg-[radial-gradient(circle_at_50%_14px,oklch(25%_0.047_280_/_0.28)_0_3px,transparent_4px),linear-gradient(90deg,transparent,oklch(25%_0.047_280_/_0.14),transparent)] bg-[length:100%_28px,100%_100%] lg:block"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-px -translate-x-1/2 bg-archive-ink/16 lg:block"
+        />
         <ProfileCard
           title="Her"
           profile={profiles.her}

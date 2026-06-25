@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Libre_Baskerville, Nunito_Sans } from "next/font/google";
+import { Caveat, Libre_Baskerville, Nunito_Sans } from "next/font/google";
 
 import { Providers } from "@/components/providers/Providers";
 
@@ -16,6 +16,12 @@ const archiveSans = Nunito_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
   weight: ["400", "500", "700"]
+});
+
+const handwritten = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"]
 });
 
 const customTabIcon = process.env.NEXT_PUBLIC_TAB_ICON_URL?.trim();
@@ -38,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${archiveSerif.variable} ${archiveSans.variable} font-sans antialiased`}>
+      <body className={`${archiveSerif.variable} ${archiveSans.variable} ${handwritten.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

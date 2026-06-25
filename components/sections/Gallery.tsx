@@ -87,6 +87,19 @@ function fullGalleryTileClass(index: number) {
   return pattern[index % pattern.length];
 }
 
+function photoPileClass(index: number) {
+  const pattern = [
+    "md:-rotate-2",
+    "md:rotate-1 md:translate-y-4",
+    "md:rotate-2",
+    "md:-rotate-1 md:-translate-y-2",
+    "md:rotate-[1.5deg]",
+    "md:-rotate-[1.5deg] md:translate-y-3",
+  ];
+
+  return pattern[index % pattern.length];
+}
+
 function queuedPhotoStatusLabel(queuedPhoto: QueuedPhoto) {
   if (queuedPhoto.status === "uploaded") {
     return "Uploaded";
@@ -223,6 +236,12 @@ export function Gallery() {
       lightboxTriggerRef.current = null;
     });
   }, []);
+
+  useEffect(() => {
+    if (isEditing && lightboxIndex !== null) {
+      closeLightbox();
+    }
+  }, [isEditing, lightboxIndex, closeLightbox]);
 
   const goToPrevious = useCallback(() => {
     setLightboxIndex((previous) => {
@@ -611,8 +630,11 @@ export function Gallery() {
       className="px-4 py-16 sm:px-6 md:py-24"
     >
       <div className="mx-auto w-full max-w-7xl">
-      <div className="mb-8 flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-end">
+      <div className="scroll-reveal mb-8 flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-end">
         <div>
+        <p className="mb-4 w-fit border border-gold/25 bg-gold-light/45 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-rose-ink">
+          photo pile
+        </p>
         <h2 className="font-serif text-4xl leading-tight text-rose-ink sm:text-5xl md:text-6xl">
           Photos
         </h2>
@@ -628,7 +650,7 @@ export function Gallery() {
         ) : null}
       </div>
 
-      <div className="mb-6 flex flex-col gap-4 border-y border-gold/20 py-4">
+      <div className="scroll-reveal mb-6 flex flex-col gap-4 border-y border-gold/20 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <label className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-xs">
           <span className="text-xs font-medium text-text-light">Memory type</span>
@@ -699,20 +721,30 @@ export function Gallery() {
                   }
                   setLightboxIndex(visibleIndex);
                 }}
-                className={`group relative block overflow-hidden rounded-2xl border bg-warm-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_50px_oklch(31%_0.042_292_/_0.12)] active:scale-[0.99] ${
+                className={`scroll-reveal group scrapbook-polaroid relative block border p-2 pb-6 text-left transition duration-300 hover:-translate-y-1 hover:rotate-0 active:scale-[0.99] ${
                   selectedSlideIndex === visibleIndex && isEditing
                     ? "border-rose/60 ring-2 ring-rose/20"
                     : "border-gold/20"
-                } ${previewTileClass(visibleIndex)}`}
+                } ${previewTileClass(visibleIndex)} ${isEditing ? "" : photoPileClass(visibleIndex)}`}
               >
-                <Image
-                  src={photo.url}
-                  alt={photo.caption}
-                  width={900}
-                  height={1200}
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
-                />
+                {!isEditing ? (
+                  <span
+                    aria-hidden="true"
+                    className={`scrapbook-tape absolute -top-2 z-10 h-5 w-16 ${
+                      visibleIndex % 2 === 0 ? "left-4 rotate-[-3deg]" : "right-4 rotate-3"
+                    }`}
+                  />
+                ) : null}
+                <span className="block h-full overflow-hidden bg-parchment">
+                  <Image
+                    src={photo.url}
+                    alt={photo.caption}
+                    width={900}
+                    height={1200}
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                  />
+                </span>
                 <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
                   {photo.caption}
                 </span>
