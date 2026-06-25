@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, TouchEvent } from "react";
+import type { CSSProperties, ChangeEvent, TouchEvent } from "react";
 
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
@@ -55,37 +55,11 @@ function captionFromFileName(fileName: string) {
 }
 
 function previewTileClass(index: number) {
-  const pattern = [
-    "col-span-2 row-span-3",
-    "row-span-2",
-    "row-span-2",
-    "row-span-3",
-    "col-span-2 row-span-2",
-    "row-span-2",
-    "row-span-3",
-    "row-span-2",
-    "col-span-2 row-span-3",
-    "row-span-2"
-  ];
-
-  return pattern[index % pattern.length];
+  return index === 0 ? "sm:col-span-2" : "";
 }
 
 function fullGalleryTileClass(index: number) {
-  const pattern = [
-    "row-span-3",
-    "row-span-2",
-    "row-span-4",
-    "row-span-2",
-    "row-span-3",
-    "row-span-2",
-    "row-span-3",
-    "row-span-4",
-    "row-span-2",
-    "row-span-3"
-  ];
-
-  return pattern[index % pattern.length];
+  return index === 0 ? "sm:col-span-2" : "";
 }
 
 function photoPileClass(index: number) {
@@ -156,6 +130,7 @@ export function Gallery() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ uploaded: 0, total: 0 });
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [photoAspectRatios, setPhotoAspectRatios] = useState<Record<string, number>>({});
   const lightboxRef = useRef<HTMLDivElement | null>(null);
   const lightboxTouchStartXRef = useRef<number | null>(null);
   const galleryDialogRef = useRef<HTMLDivElement | null>(null);
@@ -420,6 +395,17 @@ export function Gallery() {
     } else {
       goToNext();
     }
+  };
+
+  const rememberPhotoAspectRatio = (url: string, image: HTMLImageElement) => {
+    if (!image.naturalWidth || !image.naturalHeight) {
+      return;
+    }
+
+    const nextRatio = image.naturalWidth / image.naturalHeight;
+    setPhotoAspectRatios((current) =>
+      current[url] === nextRatio ? current : { ...current, [url]: nextRatio }
+    );
   };
 
   if (isLoading || !content) {
@@ -743,7 +729,7 @@ export function Gallery() {
 
       {filtered.length ? (
         <>
-          <div className="grid auto-rows-[88px] grid-cols-2 gap-3 sm:auto-rows-[104px] sm:grid-cols-4 lg:auto-rows-[118px] lg:grid-cols-6">
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {previewItems.map(({ photo, index }, visibleIndex) => (
               <button
                 key={`${photo.url}-${index}`}
@@ -770,14 +756,18 @@ export function Gallery() {
                     }`}
                   />
                 ) : null}
-                <span className="block h-full overflow-hidden bg-parchment">
+                <span
+                  className="block aspect-[var(--photo-ratio)] overflow-hidden bg-parchment"
+                  style={{ "--photo-ratio": String(photoAspectRatios[photo.url] ?? 1) } as CSSProperties}
+                >
                   <Image
                     src={photo.url}
                     alt={photo.caption}
                     width={900}
                     height={1200}
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.025] sm:object-cover sm:object-top"
+                    onLoad={(event) => rememberPhotoAspectRatio(photo.url, event.currentTarget)}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
                   />
                 </span>
                 <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
@@ -917,7 +907,7 @@ export function Gallery() {
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
               {filtered.length ? (
-                <div className="grid auto-rows-[84px] grid-cols-2 gap-3 sm:auto-rows-[96px] sm:grid-cols-4 lg:auto-rows-[104px] lg:grid-cols-6">
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {filtered.map(({ photo, index }, visibleIndex) => (
                     <button
                       key={`${photo.url}-${index}`}
@@ -932,11 +922,12 @@ export function Gallery() {
                         setIsGalleryModalOpen(false);
                         setLightboxIndex(visibleIndex);
                       }}
-                      className={`group relative block overflow-hidden rounded-xl border bg-warm-white text-left shadow-sm transition hover:-translate-y-0.5 active:scale-[0.99] ${
+                      className={`group relative block aspect-[var(--photo-ratio)] overflow-hidden rounded-xl border bg-warm-white text-left shadow-sm transition hover:-translate-y-0.5 active:scale-[0.99] ${
                         selectedSlideIndex === visibleIndex && isEditing
                           ? "border-rose/60 ring-2 ring-rose/20"
                           : "border-gold/20"
                       } ${fullGalleryTileClass(visibleIndex)}`}
+                      style={{ "--photo-ratio": String(photoAspectRatios[photo.url] ?? 1) } as CSSProperties}
                     >
                       <Image
                         src={photo.url}
@@ -944,7 +935,8 @@ export function Gallery() {
                         width={700}
                         height={900}
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                        className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.025] sm:object-cover sm:object-top"
+                        onLoad={(event) => rememberPhotoAspectRatio(photo.url, event.currentTarget)}
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
                       />
                       <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
                         {photo.caption}
