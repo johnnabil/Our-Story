@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, TouchEvent } from "react";
 
 import { EditableText } from "@/components/edit/EditableText";
 import { useContent } from "@/components/providers/ContentProvider";
@@ -26,6 +26,7 @@ const DELETE_IMAGE_CONFIRMATION =
   "Delete this photo from Cloudinary and remove it from the gallery? This cannot be undone.";
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const MIN_SWIPE_DISTANCE = 48;
 
 type QueuedPhotoStatus = "ready" | "needs-crop" | "uploading" | "uploaded" | "error";
 
@@ -156,6 +157,7 @@ export function Gallery() {
   const [uploadProgress, setUploadProgress] = useState({ uploaded: 0, total: 0 });
   const [uploadError, setUploadError] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement | null>(null);
+  const lightboxTouchStartXRef = useRef<number | null>(null);
   const galleryDialogRef = useRef<HTMLDivElement | null>(null);
   const lightboxTriggerRef = useRef<HTMLButtonElement | null>(null);
   const gallery = useMemo(() => content?.gallery ?? [], [content]);
@@ -270,6 +272,7 @@ export function Gallery() {
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.dataset.modalOpen = "true";
 
     const focusable = lightboxRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
     if (focusable && focusable.length > 0) {
@@ -327,6 +330,7 @@ export function Gallery() {
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      delete document.body.dataset.modalOpen;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [lightboxIndex, closeLightbox, goToPrevious, goToNext]);
@@ -362,6 +366,7 @@ export function Gallery() {
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.dataset.modalOpen = "true";
 
     window.requestAnimationFrame(() => {
       const focusable = galleryDialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
@@ -383,9 +388,39 @@ export function Gallery() {
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      delete document.body.dataset.modalOpen;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isGalleryModalOpen]);
+
+  const handleLightboxTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    lightboxTouchStartXRef.current = event.changedTouches[0]?.clientX ?? null;
+  };
+
+  const handleLightboxTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const startX = lightboxTouchStartXRef.current;
+    lightboxTouchStartXRef.current = null;
+
+    if (startX === null || !canInteract) {
+      return;
+    }
+
+    const endX = event.changedTouches[0]?.clientX;
+    if (endX === undefined) {
+      return;
+    }
+
+    const distance = endX - startX;
+    if (Math.abs(distance) < MIN_SWIPE_DISTANCE) {
+      return;
+    }
+
+    if (distance > 0) {
+      goToPrevious();
+    } else {
+      goToNext();
+    }
+  };
 
   if (isLoading || !content) {
     return <MemoryLoading id="gallery" />;
@@ -742,7 +777,7 @@ export function Gallery() {
                     width={900}
                     height={1200}
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                    className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.025] sm:object-cover sm:object-top"
                   />
                 </span>
                 <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
@@ -909,7 +944,7 @@ export function Gallery() {
                         width={700}
                         height={900}
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]"
+                        className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.025] sm:object-cover sm:object-top"
                       />
                       <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-text/70 via-text/20 to-transparent p-3 text-xs text-warm-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
                         {photo.caption}
@@ -941,6 +976,8 @@ export function Gallery() {
             ref={lightboxRef}
             role="dialog"
             aria-modal="true"
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
             aria-label={
               currentLightboxItem.photo.caption.trim()
                 ? `Photo preview: ${currentLightboxItem.photo.caption}`
