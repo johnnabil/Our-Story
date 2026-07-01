@@ -127,8 +127,8 @@ export function ImageCropperModal({
   const [isApplying, setIsApplying] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [preset, setPreset] = useState<CropPreset>(defaultPreset);
-  const [freeWidthPercent, setFreeWidthPercent] = useState(82);
-  const [freeHeightPercent, setFreeHeightPercent] = useState(82);
+  const [freeWidthPercent, setFreeWidthPercent] = useState(100);
+  const [freeHeightPercent, setFreeHeightPercent] = useState(100);
   const [lockedSizePercent, setLockedSizePercent] = useState(88);
   const [viewportLimit, setViewportLimit] = useState({
     width: MAX_VIEWPORT_WIDTH,
@@ -170,8 +170,8 @@ export function ImageCropperModal({
       setIsPreparing(false);
       setIsDragging(false);
       setPreset(defaultPreset);
-      setFreeWidthPercent(82);
-      setFreeHeightPercent(82);
+      setFreeWidthPercent(100);
+      setFreeHeightPercent(100);
       setLockedSizePercent(88);
       dragRef.current = null;
       return;
@@ -189,8 +189,8 @@ export function ImageCropperModal({
     setIsPreparing(true);
     setIsDragging(false);
     setPreset(defaultPreset);
-    setFreeWidthPercent(82);
-    setFreeHeightPercent(82);
+    setFreeWidthPercent(100);
+    setFreeHeightPercent(100);
     setLockedSizePercent(88);
     dragRef.current = null;
 
@@ -204,14 +204,8 @@ export function ImageCropperModal({
         width: previewImage.naturalWidth,
         height: previewImage.naturalHeight
       });
-      const imageAspect = previewImage.naturalWidth / previewImage.naturalHeight;
-      if (imageAspect >= 1) {
-        setFreeWidthPercent(92);
-        setFreeHeightPercent(clamp(Math.round(92 / imageAspect), FREE_CROP_MIN_PERCENT, 92));
-      } else {
-        setFreeHeightPercent(92);
-        setFreeWidthPercent(clamp(Math.round(92 * imageAspect), FREE_CROP_MIN_PERCENT, 92));
-      }
+      setFreeWidthPercent(100);
+      setFreeHeightPercent(100);
       setIsPreparing(false);
     };
     previewImage.onerror = () => {
@@ -313,16 +307,16 @@ export function ImageCropperModal({
       return null;
     }
 
-    const coverScale = Math.max(
-      viewport.width / imageMeta.width,
-      viewport.height / imageMeta.height
-    );
+    const shouldFitWholePhoto = preset === "free" || preset === "original";
+    const fitScale = shouldFitWholePhoto
+      ? Math.min(viewport.width / imageMeta.width, viewport.height / imageMeta.height)
+      : Math.max(cropBox.width / imageMeta.width, cropBox.height / imageMeta.height);
 
     return {
-      width: imageMeta.width * coverScale,
-      height: imageMeta.height * coverScale
+      width: imageMeta.width * fitScale,
+      height: imageMeta.height * fitScale
     };
-  }, [imageMeta, viewport.height, viewport.width]);
+  }, [cropBox.height, cropBox.width, imageMeta, preset, viewport.height, viewport.width]);
 
   const clampOffset = useCallback(
     (nextOffset: Offset, nextZoom: number): Offset => {
@@ -349,6 +343,12 @@ export function ImageCropperModal({
   }, [clampOffset, zoom]);
 
   const handleZoomChange = (nextZoom: number) => {
+    if (preset === "original") {
+      setZoom(1);
+      setOffset({ x: 0, y: 0 });
+      return;
+    }
+
     const normalizedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
     setZoom(normalizedZoom);
     setOffset((previous) => clampOffset(previous, normalizedZoom));
@@ -370,7 +370,7 @@ export function ImageCropperModal({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!baseImageSize || isPreparing || isApplying) {
+    if (preset === "original" || !baseImageSize || isPreparing || isApplying) {
       return;
     }
 
@@ -430,6 +430,35 @@ export function ImageCropperModal({
       const sourceImage = new window.Image();
       sourceImage.src = previewUrl;
       await sourceImage.decode();
+
+      if (preset === "original") {
+        const canvas = document.createElement("canvas");
+        canvas.width = imageMeta.width;
+        canvas.height = imageMeta.height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          throw new Error("Canvas context is not available");
+        }
+
+        context.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+        const outputType = pickOutputMimeType(file.type);
+        const originalBlob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob(resolve, outputType, 0.92);
+        });
+
+        if (!originalBlob) {
+          throw new Error("Could not create cropped file");
+        }
+
+        const originalFile = new File([originalBlob], fileNameForOutput(file.name, outputType), {
+          type: outputType
+        });
+
+        await onApply(originalFile);
+        return;
+      }
 
       const displayWidth = baseImageSize.width * zoom;
       const displayHeight = baseImageSize.height * zoom;
@@ -509,7 +538,11 @@ export function ImageCropperModal({
     >
       <div className="grid min-h-0 gap-4 sm:grid-cols-[minmax(0,1fr)_15rem]">
         <div className="min-w-0 space-y-3">
-          <p className="text-sm text-text-muted">Drag to reposition. Use zoom and crop size to refine the frame.</p>
+          <p className="text-sm text-text-muted">
+            {preset === "original"
+              ? "Original keeps the whole photo exactly as uploaded."
+              : "Drag to reposition. Use zoom and crop size to refine the frame."}
+          </p>
 
           <div className="grid grid-cols-5 gap-1 rounded-full border border-gold/25 bg-cream p-1">
             {PRESET_OPTIONS.map((option) => (
@@ -530,7 +563,7 @@ export function ImageCropperModal({
 
           <div
             className={`relative mx-auto overflow-hidden rounded-xl border border-gold/30 bg-cream/40 ${
-              isDragging ? "cursor-grabbing" : "cursor-grab"
+              preset === "original" ? "cursor-default" : isDragging ? "cursor-grabbing" : "cursor-grab"
             } touch-none select-none`}
             style={{ width: `${viewport.width}px`, height: `${viewport.height}px` }}
             onPointerDown={handlePointerDown}
@@ -579,7 +612,7 @@ export function ImageCropperModal({
               step={0.01}
               value={zoom}
               onChange={(event) => handleZoomChange(Number(event.target.value))}
-              disabled={!canCrop || isApplying}
+              disabled={!canCrop || isApplying || preset === "original"}
               className="mt-2 w-full accent-rose"
             />
           </label>
